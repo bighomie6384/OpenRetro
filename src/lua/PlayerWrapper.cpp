@@ -147,6 +147,13 @@ static int plr_getZ(lua_State *state) {
     return 1;
 }
 
+static int plr_getGM(lua_State *state) {
+    Player *plr = grabPlayer(state, 1);
+
+    lua_pushnumber(state, plr->accountLevel);
+    return 1;
+}
+
 // in charge of calling the correct getter method
 static int plr_index(lua_State *state) {
     // grab the function from the getters lookup table
@@ -181,6 +188,7 @@ static const luaL_reg getters[] = {
     {"x", plr_getX},
     {"y", plr_getY},
     {"z", plr_getZ},
+    {"GM", plr_getGM}, // grabs account level
     {0, 0}
 };
 
