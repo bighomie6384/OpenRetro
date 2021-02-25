@@ -102,7 +102,12 @@ static int plr_onRemoved(lua_State *state) {
 }
 
 static int plr_moveTo(lua_State *state) {
-    // unimpl.
+    CNSocket *sock = grabSock(state, 1);
+    int x = luaL_checkint(state, 2);
+    int y = luaL_checkint(state, 3);
+    int z = luaL_checkint(state, 4);
+
+    PlayerManager::sendPlayerTo(sock, x, y, z);
     return 0;
 }
 
