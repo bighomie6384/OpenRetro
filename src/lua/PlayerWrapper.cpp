@@ -207,6 +207,9 @@ void LuaManager::Player::playerRemoved(CNSocket *sock) {
         e->onDisconnect.clear();
         e->onChat.clear();
     }
+
+    // remove from the map
+    eventMap.erase(iter);
 }
 
 void LuaManager::Player::playerChatted(CNSocket *sock, std::string &msg) {
