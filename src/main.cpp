@@ -18,6 +18,8 @@
 
 #include "settings.hpp"
 
+#include "lua/LuaManager.hpp"
+
 #include "../version.h"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
@@ -104,6 +106,9 @@ int main() {
     GroupManager::init();
     RacingManager::init();
     Database::open();
+    LuaManager::init();
+
+    LuaManager::runScript("main.lua");
 
     switch (settings::EVENTMODE) {
     case 0: break; // no event

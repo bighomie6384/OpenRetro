@@ -13,6 +13,8 @@
 #include "MobManager.hpp"
 #include "RacingManager.hpp"
 
+#include "lua/LuaManager.hpp"
+
 #include "settings.hpp"
 
 #include <assert.h>
@@ -64,6 +66,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     p->viewableChunks = new std::set<Chunk*>();
     p->lastHeartbeat = 0;
 
+    LuaManager::playerAdded(key);
+
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
@@ -71,6 +75,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 void PlayerManager::removePlayer(CNSocket* key) {
     Player* plr = getPlayer(key);
     uint64_t fromInstance = plr->instanceID;
+
+    LuaManager::playerRemoved(key);
 
     GroupManager::groupKickPlayer(plr);
 
