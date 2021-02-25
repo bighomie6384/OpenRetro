@@ -121,6 +121,27 @@ static int plr_getName(lua_State *state) {
     return 1;
 }
 
+static int plr_getX(lua_State *state) {
+    Player *plr = grabPlayer(state, 1);
+
+    lua_pushnumber(state, plr->x);
+    return 1;
+}
+
+static int plr_getY(lua_State *state) {
+    Player *plr = grabPlayer(state, 1);
+
+    lua_pushnumber(state, plr->y);
+    return 1;
+}
+
+static int plr_getZ(lua_State *state) {
+    Player *plr = grabPlayer(state, 1);
+
+    lua_pushnumber(state, plr->z);
+    return 1;
+}
+
 // in charge of calling the correct getter method
 static int plr_index(lua_State *state) {
     // grab the function from the getters lookup table
@@ -152,6 +173,9 @@ static int plr_index(lua_State *state) {
 
 static const luaL_reg getters[] = {
     {"name", plr_getName},
+    {"x", plr_getX},
+    {"y", plr_getY},
+    {"z", plr_getZ},
     {0, 0}
 };
 
