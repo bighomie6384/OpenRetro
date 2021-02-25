@@ -60,8 +60,15 @@ public:
         refs = std::vector<callable>();
     }
 
-    inline void addCallback(lua_State *state, lRegistry ref) {
+    void addCallback(lua_State *state, lRegistry ref) {
         refs.push_back({state, ref});
+    }
+
+    // walks through the refs and unregister them from the state
+    void clear() {
+        for (callable &e : refs) {
+            luaL_unref(e.state, LUA_REGISTRYINDEX, e.reg);
+        }
     }
 
     template<class... Args> inline void call(Args... args) {
@@ -71,7 +78,6 @@ public:
             int nargs = lua_autoPush(e.state, 0, args...);
 
             // then call it :)
-            std::cout << "calling event with " << nargs << " args!" << std::endl;
             if (lua_pcall(e.state, nargs, 0, 0) != 0) {
                 // print the error and return
                 std::cout << lua_tostring(e.state, 0) << std::endl;

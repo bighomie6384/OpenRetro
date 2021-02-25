@@ -62,21 +62,16 @@ static void pushPlayer(lua_State *state, CNSocket *sock) {
     // attaches our metatable from the registry to the udata
     luaL_getmetatable(state, LIBNAME);
     lua_setmetatable(state, -2);
-
-    std::cout << "created player!" << std::endl;
 }
 
 
 static int plr_moveTo(lua_State *state) {
-    std::cout << "moveto called!" << std::endl;
+
     return 0;
 }
 
 static int plr_getName(lua_State *state) {
-    std::cout << "getName called with : " << luaL_typename(state, 1) << std::endl;
     Player *plr = grabPlayer(state, 1);
-
-    printf("player at %p\n", plr);
 
     lua_pushstring(state, PlayerManager::getPlayerName(plr).c_str());
     return 1;
@@ -158,6 +153,20 @@ void LuaManager::Player::push(lua_State *state, CNSocket *sock) {
 }
 
 void LuaManager::Player::playerRemoved(CNSocket *sock) {
+    auto iter = eventMap.find(sock);
+
+    // if we have a PlayerEvent defined, call the event
+    if (iter != eventMap.end()) {
+        PlayerEvents *e = &iter->second;
+        e->onDisconnect.call(sock); // call the event
+
+        // disconnect the events
+        e->onDisconnect.clear();
+        e->onChat.clear();
+    }
+}
+
+void LuaManager::Player::playerChatted(CNSocket *sock, std::string &msg) {
     auto iter = eventMap.find(sock);
 
     // if we have a PlayerEvent defined, call the event

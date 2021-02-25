@@ -33,3 +33,7 @@ void LuaManager::playerRemoved(CNSocket *sock) {
     World::playerRemoved(sock);
     Player::playerRemoved(sock);
 }
+
+void LuaManager::playerChatted(CNSocket *sock, std::string& msg) {
+    Player::playerChatted(sock, msg);
+}

@@ -10,6 +10,7 @@
 #include "MissionManager.hpp"
 #include "ChunkManager.hpp"
 #include "ItemManager.hpp"
+#include "lua/LuaManager.hpp"
 
 #include <sstream>
 #include <iterator>
@@ -896,6 +897,7 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
+    LuaManager::playerChatted(sock, fullChat);
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         runCmd(fullChat, sock);
         return;

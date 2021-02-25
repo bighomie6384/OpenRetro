@@ -11,8 +11,9 @@ namespace LuaManager {
     void init();
 
     // creates a new state from the global state and runs the provided script file
-    void runScript(std::string filename); 
+    void runScript(std::string filename);
 
     void playerAdded(CNSocket *sock);
     void playerRemoved(CNSocket *sock);
+    void playerChatted(CNSocket *sock, std::string& msg);
 }

@@ -5,8 +5,8 @@ CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
 # If compiling with ASAN, invoke like this: $ LSAN_OPTIONS=suppressions=suppr.txt bin/fusion
 CFLAGS=-O3 #-g3 -fsanitize=address
-CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -g -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" #-g3 -fsanitize=address
-LDFLAGS=-lpthread -lsqlite3 -llua5.1 -fsanitize=address
+CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" #-g3 -fsanitize=address
+LDFLAGS=-lpthread -lsqlite3 -llua5.1 #-fsanitize=address
 # specifies the name of our exectuable
 SERVER=bin/fusion
 

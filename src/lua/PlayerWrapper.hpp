@@ -12,5 +12,6 @@ namespace LuaManager {
 
         // events (called by LuaManager)
         void playerRemoved(CNSocket *sock);
+        void playerChatted(CNSocket *sock, std::string& msg);
     }
 }
