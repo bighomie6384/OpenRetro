@@ -10,6 +10,11 @@
 #include "LuaManager.hpp"
 #include "PlayerWrapper.hpp"
 
+#define safeCall(state, nargs, nres) \
+    if (lua_pcall(state, nargs, nres, 0) != 0) { \
+        std::cout << "[LUA ERROR]: " << lua_tostring(state, -1) << std::endl; \
+    }
+
 inline static int lua_autoPush(lua_State* state, int nargs) {
     // return the number of pushed arguments :)
     return nargs;
@@ -78,11 +83,8 @@ public:
             int nargs = lua_autoPush(e.state, 0, args...);
 
             // then call it :)
-            if (lua_pcall(e.state, nargs, 0, 0) != 0) {
-                // print the error and return
-                std::cout << lua_tostring(e.state, 0) << std::endl;
-                return;
-            }
+            safeCall(e.state, nargs, 1);
+            lua_pop(e.state, 1);
         }
     }
 };

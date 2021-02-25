@@ -1,6 +1,7 @@
 #include "PlayerWrapper.hpp"
 #include "LuaWrapper.hpp"
 
+#include "../ChatManager.hpp"
 #include <map>
 
 #define LIBNAME "player"
@@ -64,10 +65,53 @@ static void pushPlayer(lua_State *state, CNSocket *sock) {
     lua_setmetatable(state, -2);
 }
 
+static int plr_onChat(lua_State *state) {
+    int nargs = lua_gettop(state);
+    PlayerEvents *evnt = grabEvents(state, 1);
 
-static int plr_moveTo(lua_State *state) {
+    // sanity check
+    if (evnt == NULL)
+        return 0;
+
+    // for each argument passed, check that it's a function and add it to the event
+    for (int i = 2; i <= nargs; i++) {
+        luaL_checktype(state, i, LUA_TFUNCTION);
+        lua_pushvalue(state, i);
+        evnt->onChat.addCallback(state, luaL_ref(state, LUA_REGISTRYINDEX));
+    }
 
     return 0;
+}
+
+static int plr_onRemoved(lua_State *state) {
+    int nargs = lua_gettop(state);
+    PlayerEvents *evnt = grabEvents(state, 1);
+
+    // sanity check
+    if (evnt == NULL)
+        return 0;
+
+    // for each argument passed, check that it's a function and add it to the event
+    for (int i = 2; i <= nargs; i++) {
+        luaL_checktype(state, i, LUA_TFUNCTION);
+        lua_pushvalue(state, i);
+        evnt->onDisconnect.addCallback(state, luaL_ref(state, LUA_REGISTRYINDEX));
+    }
+
+    return 0;
+}
+
+static int plr_moveTo(lua_State *state) {
+    // unimpl.
+    return 0;
+}
+
+static int plr_msg(lua_State *state) {
+    CNSocket *sock = grabSock(state, 1); // the first argument should be the player
+    luaL_checkstring(state, 2); // the second should be the message
+
+    ChatManager::sendServerMessage(sock, std::string(lua_tostring(state, 2)));
+    return 0; // we return nothing
 }
 
 static int plr_getName(lua_State *state) {
@@ -89,11 +133,7 @@ static int plr_index(lua_State *state) {
     if (!lua_isnil(state, -1)) {
         // push table & call the function
         lua_pushvalue(state, 1);
-        if (lua_pcall(state, 1, 1, 0) != 0) {
-            std::cout << "[ERROR] : " << lua_tostring(state, -1) << std::endl;
-            lua_pop(state, 1);
-            return 0;
-        }
+        lua_call(state, 1, 1);
 
         // return # of results
         return 1;
@@ -116,7 +156,10 @@ static const luaL_reg getters[] = {
 };
 
 static const luaL_reg methods[] = {
+    {"onChat", plr_onChat},
+    {"onRemoved", plr_onRemoved},
     {"moveTo", plr_moveTo},
+    {"sendMessage", plr_msg},
     {0, 0}
 };
 
@@ -158,7 +201,7 @@ void LuaManager::Player::playerRemoved(CNSocket *sock) {
     // if we have a PlayerEvent defined, call the event
     if (iter != eventMap.end()) {
         PlayerEvents *e = &iter->second;
-        e->onDisconnect.call(sock); // call the event
+        e->onDisconnect.call(sock); // player <userdata>
 
         // disconnect the events
         e->onDisconnect.clear();
@@ -172,6 +215,6 @@ void LuaManager::Player::playerChatted(CNSocket *sock, std::string &msg) {
     // if we have a PlayerEvent defined, call the event
     if (iter != eventMap.end()) {
         PlayerEvents *e = &iter->second;
-        e->onDisconnect.call(sock);
+        e->onChat.call(msg.c_str()); // msg <string>
     }
 }

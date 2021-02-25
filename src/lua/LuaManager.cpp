@@ -10,11 +10,12 @@ void LuaManager::init() {
     // allocate our state
     global = luaL_newstate();
 
-    // open lua's base libraries (excluding the IO & debug library for now)
+    // open lua's base libraries (excluding the IO for now)
     luaopen_base(global);
     luaopen_table(global);
     luaopen_string(global);
     luaopen_math(global);
+    luaopen_debug(global);
 
     // now load our libraries
     Player::init(global);
@@ -22,7 +23,10 @@ void LuaManager::init() {
 }
 
 void LuaManager::runScript(std::string filename) {
-    luaL_dofile(global, filename.c_str());
+    // compile & run the script, if it error'd, print the error
+    if (luaL_dofile(global, filename.c_str()) != 0) {
+        std::cout << "[LUA ERROR]: " << lua_tostring(global, -1) << std::endl; 
+    }
 }
 
 void LuaManager::playerAdded(CNSocket *sock) {
