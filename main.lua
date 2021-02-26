@@ -9,8 +9,14 @@ world.onPlayerAdded(function(player)
             player:sendMessage("your prays have been answered")
             player:setJump(30)
             player:setSpeed(2000)
+        elseif msg == "sleepy" then
+            player:sendMessage("waiting 2 seconds and replying!")
+            wait(2)
+            player:sendMessage("hello from the future!")
         end
     end)
 end)
 
-print("Hello world!")
+while wait(1) do
+    print("Hello world!")
+end
