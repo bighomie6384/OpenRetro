@@ -341,6 +341,14 @@ void LuaManager::Player::push(lua_State *state, CNSocket *sock) {
     pushPlayer(state, sock);
 }
 
+void LuaManager::Player::clearState(lua_State *state) {
+    // walk through our active event map and clear the state from every event
+    for (auto &e : eventMap) {
+        e.second.onChat.clear(state);
+        e.second.onDisconnect.clear(state);
+    }
+}
+
 void LuaManager::Player::playerRemoved(CNSocket *sock) {
     auto iter = eventMap.find(sock);
 

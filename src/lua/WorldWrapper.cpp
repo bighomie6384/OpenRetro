@@ -48,6 +48,11 @@ void LuaManager::World::init(lua_State *state) {
     removedEvent = lEvent();
 }
 
+void LuaManager::World::clearState(lua_State *state) {
+    addedEvent.clear(state);
+    removedEvent.clear(state);
+}
+
 void LuaManager::World::playerAdded(CNSocket *sock) {
     addedEvent.call(sock);
 }

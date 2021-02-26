@@ -5,6 +5,7 @@
 */
 
 #include <string>
+#include <map>
 #include <vector>
 
 #include "LuaManager.hpp"
@@ -54,37 +55,61 @@ inline static int lua_autoPush(lua_State* state, int nargs, T arg, Rest... rest)
 // callback event handler, allows multiple callbacks connected to one event
 class lEvent {
 private:
-    struct callable {
-        lua_State *state;
-        lRegistry reg;
-    };
-    std::vector<callable> refs; // references given by luaL_ref to our callable value passed by lua
+    std::map<lua_State*, std::vector<lRegistry>> refs; // references given by luaL_ref to our callable value passed by lua
 
 public:
     lEvent() {
-        refs = std::vector<callable>();
+        refs = std::map<lua_State*, std::vector<lRegistry>>();
     }
 
     void addCallback(lua_State *state, lRegistry ref) {
-        refs.push_back({state, ref});
+        auto iter = refs.find(state);
+        
+        // if the state hasn't registered any callbacks, make the hashmap index and vector
+        if (iter == refs.end())
+            (refs[state] = std::vector<lRegistry>()).push_back(ref);
+        else // else just push it to the already existing vector
+            (*iter).second.push_back(ref);
     }
 
     // walks through the refs and unregister them from the state
     void clear() {
-        for (callable &e : refs) {
-            luaL_unref(e.state, LUA_REGISTRYINDEX, e.reg);
+        for (auto &e : refs) {
+            for (lRegistry ref : e.second) {
+                luaL_unref(e.first, LUA_REGISTRYINDEX, ref);
+            }
         }
+
+        refs.clear();
+    }
+
+    // only clears callbacks registered to this state
+    void clear(lua_State *state) {
+        // grab the iterator, if the state doesn't exist in this event just return
+        auto iter = refs.find(state);
+        if (iter == refs.end())
+            return;
+
+        // walk through the refs and unref() them from the state
+        for (lRegistry ref : (*iter).second) {
+            luaL_unref((*iter).first, LUA_REGISTRYINDEX, ref);
+        }
+
+        // finally, erase it from the hashmap
+        refs.erase(iter);
     }
 
     template<class... Args> inline void call(Args... args) {
-        for (callable &e : refs) {
-            // push the callable first, the push all the arguments
-            lua_rawgeti(e.state, LUA_REGISTRYINDEX, (int)e.reg);
-            int nargs = lua_autoPush(e.state, 0, args...);
+        for (auto &e : refs) {
+            for (lRegistry ref : e.second) {
+                // push the callable first, the push all the arguments
+                lua_rawgeti(e.first, LUA_REGISTRYINDEX, (int)ref);
+                int nargs = lua_autoPush(e.first, 0, args...);
 
-            // then call it :)
-            safeCall(e.state, nargs, 1);
-            lua_pop(e.state, 1);
+                // then call it :)
+                safeCall(e.first, nargs, 1);
+                lua_pop(e.first, 1);
+            }
         }
     }
 };
