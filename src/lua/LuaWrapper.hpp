@@ -11,8 +11,9 @@
 #include "LuaManager.hpp"
 #include "PlayerWrapper.hpp"
 
-#define safeCall(state, nargs, nres) \
-    if (lua_pcall(state, nargs, nres, 0) != 0) { \
+#define yieldCall(state, nargs) \
+    int _retCode = lua_resume(state, nargs); \
+    if (_retCode != 0 && _retCode != LUA_YIELD) { \
         std::cout << "[LUA ERROR]: " << lua_tostring(state, -1) << std::endl; \
     }
 
@@ -102,13 +103,15 @@ public:
     template<class... Args> inline void call(Args... args) {
         for (auto &e : refs) {
             for (lRegistry ref : e.second) {
+                // make thread for this callback
+                lua_State *nThread = lua_newthread(e.first);
+
                 // push the callable first, the push all the arguments
-                lua_rawgeti(e.first, LUA_REGISTRYINDEX, (int)ref);
-                int nargs = lua_autoPush(e.first, 0, args...);
+                lua_rawgeti(nThread, LUA_REGISTRYINDEX, (int)ref);
+                int nargs = lua_autoPush(nThread, 0, args...);
 
                 // then call it :)
-                safeCall(e.first, nargs, 1);
-                lua_pop(e.first, 1);
+                yieldCall(nThread, nargs);
             }
         }
     }

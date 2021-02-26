@@ -5,9 +5,17 @@
 
 #include <vector>
 
+time_t getTime();
+class Script;
+
 // our "main" state, holds our environment
 lua_State *global;
+std::map<lua_State*, Script*> activeScripts;
 
+
+/*
+    Basically each script is treated as a coroutine, when wait() is called it gets yielded and is pushed onto the scheduler queue to be resumed.
+*/
 class Script {
 private:
     lua_State *thread;
@@ -19,8 +27,12 @@ public:
         thread = lua_newthread(global);
         threadRef = luaL_ref(global, LUA_REGISTRYINDEX);
 
+        // add this script to the map
+        activeScripts[thread] = this;
+
         // compile & run the script, if it error'd, print the error
-        if (luaL_dofile(thread, source.c_str()) != 0) {
+        int _retCode;
+        if (luaL_loadfile(thread, source.c_str()) || ((_retCode = lua_resume(thread, 0)) != 0 && (_retCode != LUA_YIELD))) {
             std::cout << "[LUA ERROR]: " << lua_tostring(thread, -1) << std::endl; 
         }
     }
@@ -32,9 +44,40 @@ public:
         // remove it from the global registry
         luaL_unref(global, LUA_REGISTRYINDEX, threadRef);
     }
+
+    // c++ moment....
+    lua_State* getState() {
+        return thread;
+    }
 };
 
-std::vector<Script*> activeScripts;
+std::map<lua_State*, time_t> scheduleQueue;
+
+// pauses the script for x seconds
+int OF_wait(lua_State *state) {
+    double seconds = luaL_checknumber(state, 1);
+
+    // yield the state and push the state onto our scheduler queue
+    scheduleQueue[state] = (int)(seconds*1000) + getTime();
+    return lua_yield(state, 0);
+}
+
+void luaScheduler(CNServer *serv, time_t currtime) {
+    for (auto iter = scheduleQueue.begin(); iter != scheduleQueue.end();) {
+        time_t event = (*iter).second;
+        lua_State *thread = (*iter).first;
+        // is it time to run the event?
+        if (event <= currtime) {
+            // remove from the scheduler queue
+            scheduleQueue.erase(iter++);
+            
+            // resume the state, (wait() returns the delta time since call)
+            lua_pushnumber(thread, ((double)currtime - event)/10);
+            yieldCall(thread, 1);
+        } else // go to the next iteration
+            ++iter;
+    }
+}
 
 void LuaManager::init() {
     // allocate our state
@@ -51,21 +94,25 @@ void LuaManager::init() {
     Player::init(global);
     World::init(global);
 
-    activeScripts = std::vector<Script*>();
+    // add wait()
+    lua_register(global, "wait", OF_wait);
+
+    activeScripts = std::map<lua_State*, Script*>();
+
+    REGISTER_SHARD_TIMER(luaScheduler, 200);
 }
 
 void LuaManager::runScript(std::string filename) {
     Script *script = new Script(filename);
-    activeScripts.push_back(script);
 }
 
 void LuaManager::stopScripts() {
     // free all the scripts, they'll take care of everything for us :)
-    for (Script *script : activeScripts) {
-        delete script;
+    for (auto as : activeScripts) {
+        delete as.second;
     }
 
-    // finally clear the vector
+    // finally clear the map
     activeScripts.clear();
 }
 
