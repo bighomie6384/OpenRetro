@@ -107,6 +107,9 @@ void LuaManager::runScript(std::string filename) {
 }
 
 void LuaManager::stopScripts() {
+    // clear the scheduler queue
+    scheduleQueue.clear();
+
     // free all the scripts, they'll take care of everything for us :)
     for (auto as : activeScripts) {
         delete as.second;
