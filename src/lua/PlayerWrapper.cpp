@@ -163,8 +163,22 @@ static int plr_msg(lua_State *state) {
     CNSocket *sock = grabSock(state, 1); // the first argument should be the player
     luaL_checkstring(state, 2); // the second should be the message
 
+    // sanity check
+    if (sock == NULL) {
+        luaL_argerror(state, 1, PLRGONESTR);
+        return 0;
+    }
+
     ChatManager::sendServerMessage(sock, std::string(lua_tostring(state, 2)));
     return 0; // we return nothing
+}
+
+// returns if the player is still in the server
+static int plr_exists(lua_State *state) {
+    CNSocket *sock = grabSock(state, 1);
+
+    lua_pushboolean(state, sock != NULL);
+    return 1;
 }
 
 // =============================================== [[ GETTERS ]] ===============================================
@@ -284,6 +298,7 @@ static const luaL_reg methods[] = {
     {"sendMessage", plr_msg},
     {"setSpeed", plr_setSpeed},
     {"setJump", plr_setJump},
+    {"exists", plr_exists},
     {0, 0}
 };
 

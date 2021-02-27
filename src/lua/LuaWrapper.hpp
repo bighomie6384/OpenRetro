@@ -137,9 +137,6 @@ private:
             // free the event
             freeEvent(state, e);
         }
-    
-        // remove it from the queue
-        clearQueue.erase(iter);
 
         // remove the state if the vector is empty
         if (refsVec.empty()) {
@@ -212,9 +209,20 @@ public:
         queueFlush(state);
     }
 
+    void flushClear() {
+        for (auto rIter = clearQueue.begin(); rIter != clearQueue.end();) {
+            // flush the queued events
+            flush((*rIter).first);
+            clearQueue.erase(rIter++);
+        }
+    }
+
     template<class... Args> inline void call(Args... args) {
+        // flush all of the events we don't need out of refs
+        flushClear();
+
         for (auto rIter = refs.begin(); rIter != refs.end();) {
-            auto &e = *rIter;
+            auto &e = *(rIter++);
             for (auto iter = e.second.begin(); iter != e.second.end();) {
                 rawEvent *ref = (*iter);
                 switch (ref->type) {
@@ -249,10 +257,6 @@ public:
                         break;
                 }
             }
-
-            // flush the queued events
-            if (!flush(e.first))
-                rIter++;
         }
     }
 };
