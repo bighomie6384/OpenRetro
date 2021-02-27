@@ -9,8 +9,8 @@
 #define PLRGONESTR "Player doesn't exist anymore, they left!"
 
 struct PlayerEvents {
-    lEvent onChat;
-    lEvent onDisconnect;
+    lEvent *onChat;
+    lEvent *onDisconnect;
 };
 
 // our userdata only stores a pointer, but i couldn't just use a light userdata since they all share the same metatable :(
@@ -60,7 +60,7 @@ static PlayerEvents* grabEvents(lua_State *state, int index) {
 static void pushPlayer(lua_State *state, CNSocket *sock) {
     // if the event map doesn't have this socket yet, make it
     if (eventMap.find(sock) == eventMap.end())
-        eventMap[sock] = {lEvent(), lEvent()};
+        eventMap[sock] = {new lEvent(), new lEvent()};
 
     // creates the udata and sets the pointer
     PlrData *plr = (PlrData*)lua_newuserdata(state, sizeof(PlrData));
@@ -78,7 +78,7 @@ static int plr_getOnChat(lua_State *state) {
     if (evnt == NULL)
         return 0;
 
-    LuaManager::Event::push(state, &evnt->onChat);
+    LuaManager::Event::push(state, evnt->onChat);
     return 1;
 }
 
@@ -89,7 +89,7 @@ static int plr_getOnDisconnect(lua_State *state) {
     if (evnt == NULL)
         return 0;
 
-    LuaManager::Event::push(state, &evnt->onDisconnect);
+    LuaManager::Event::push(state, evnt->onDisconnect);
     return 1;
 }
 
@@ -331,8 +331,8 @@ void LuaManager::Player::push(lua_State *state, CNSocket *sock) {
 void LuaManager::Player::clearState(lua_State *state) {
     // walk through our active event map and clear the state from every event
     for (auto &e : eventMap) {
-        e.second.onChat.clear(state);
-        e.second.onDisconnect.clear(state);
+        e.second.onChat->clear(state);
+        e.second.onDisconnect->clear(state);
     }
 }
 
@@ -342,11 +342,11 @@ void LuaManager::Player::playerRemoved(CNSocket *sock) {
     // if we have a PlayerEvent defined, call the event
     if (iter != eventMap.end()) {
         PlayerEvents *e = &iter->second;
-        e->onDisconnect.call(sock); // player <userdata>
+        e->onDisconnect->call(sock); // player <userdata>
 
         // disconnect the events
-        e->onDisconnect.clear();
-        e->onChat.clear();
+        delete e->onDisconnect;
+        delete e->onChat;
     }
 
     // remove from the map
@@ -359,6 +359,6 @@ void LuaManager::Player::playerChatted(CNSocket *sock, std::string &msg) {
     // if we have a PlayerEvent defined, call the event
     if (iter != eventMap.end()) {
         PlayerEvents *e = &iter->second;
-        e->onChat.call(msg.c_str()); // msg <string>
+        e->onChat->call(msg.c_str()); // msg <string>
     }
 }

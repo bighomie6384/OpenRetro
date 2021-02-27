@@ -2,18 +2,18 @@
 #include "LuaWrapper.hpp"
 #include "EventWrapper.hpp"
 
-static lEvent addedEvent;
-static lEvent removedEvent;
+static lEvent *addedEvent;
+static lEvent *removedEvent;
 
 #define LIBNAME "world"
 
 int wrld_plrAdded(lua_State *state) {
-    LuaManager::Event::push(state, &addedEvent);
+    LuaManager::Event::push(state, addedEvent);
     return 1;
 }
 
 int wrld_plrRemoved(lua_State *state) {
-    LuaManager::Event::push(state, &removedEvent);
+    LuaManager::Event::push(state, removedEvent);
     return 1;
 }
 
@@ -59,19 +59,19 @@ void LuaManager::World::init(lua_State *state) {
     luaL_register(state, NULL, getters);
     lua_rawset(state, LUA_REGISTRYINDEX);
 
-    addedEvent = lEvent();
-    removedEvent = lEvent();
+    addedEvent = new lEvent();
+    removedEvent = new lEvent();
 }
 
 void LuaManager::World::clearState(lua_State *state) {
-    addedEvent.clear(state);
-    removedEvent.clear(state);
+    addedEvent->clear(state);
+    removedEvent->clear(state);
 }
 
 void LuaManager::World::playerAdded(CNSocket *sock) {
-    addedEvent.call(sock);
+    addedEvent->call(sock);
 }
 
 void LuaManager::World::playerRemoved(CNSocket *sock) {
-    removedEvent.call(sock);
+    removedEvent->call(sock);
 }

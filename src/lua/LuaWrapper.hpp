@@ -7,6 +7,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <unordered_set>
 
 #include "LuaManager.hpp"
 #include "PlayerWrapper.hpp"
@@ -58,6 +59,9 @@ enum eventType {
     EVENT_WAIT // state needs to be resumed with the arguments
 };
 
+class lEvent;
+
+extern std::unordered_set<lEvent*> activeEvents;
 
 class lEvent {
 public:
@@ -88,6 +92,13 @@ private:
 public:
     lEvent() {
         refs = std::map<lua_State*, std::vector<rawEvent*>>();
+        activeEvents.insert(this);
+    }
+
+    ~lEvent() {
+        // remove from the active set and disable all existing callbacks
+        activeEvents.erase(this);
+        clear();
     }
 
     rawEvent* addCallback(lua_State *state, lRegistry ref) {

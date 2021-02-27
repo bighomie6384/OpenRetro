@@ -5,10 +5,14 @@
 #include "EventWrapper.hpp"
 #include "LuaWrapper.hpp"
 
+#include <unordered_set>
+
 #define LIBNAME "event"
 #define LISTNR "listener"
 
 typedef lEvent* eventData;
+
+std::unordered_set<lEvent*> activeEvents;
 
 struct lstnrData {
     lEvent *event;
@@ -45,6 +49,10 @@ static lEvent *grabEvent(lua_State *state, int indx) {
         return NULL;
     }
 
+    // if the event is not active return NULL and don't throw an error (this is an easily forgivable user-error)
+    if (activeEvents.find(*event) == activeEvents.end())
+        return NULL;
+
     // return the pointer to the lEvent
     return *event;
 }
@@ -59,6 +67,10 @@ static lstnrData *grabListener(lua_State *state, int indx) {
         luaL_typerror(state, indx, LISTNR);
         return NULL;
     }
+
+    // if the event is not active return NULL and don't throw an error (this is an easily forgivable user-error)
+    if (activeEvents.find(lstnr->event) == activeEvents.end())
+        return NULL;
 
     // now check and make sure that the event is still active
     if (!lstnr->event->checkAlive(lstnr->rawListener)) {
@@ -75,6 +87,10 @@ static int evnt_listen(lua_State *state) {
     int nargs = lua_gettop(state);
     lEvent *event = grabEvent(state, 1);
 
+    // sanity check
+    if (event == NULL)
+        return 0;
+
     // for each argument passed, check that it's a function and add it to the event
     for (int i = 2; i <= nargs; i++) {
         luaL_checktype(state, i, LUA_TFUNCTION);
@@ -89,6 +105,10 @@ static int evnt_listen(lua_State *state) {
 // yields the thread until the event is triggered
 static int evnt_wait(lua_State *state) {
     lEvent *event = grabEvent(state, 1);
+
+    // sanity check
+    if (event == NULL)
+        return 0;
 
     event->addWait(state);
     return lua_yield(state, 0);
@@ -136,6 +156,8 @@ void LuaManager::Event::init(lua_State *state) {
 
     // pop the tables off the stack
     lua_pop(state, 3);
+
+    activeEvents = std::unordered_set<lEvent*>();
 }
 
 // just a wrapper for pushEvent()

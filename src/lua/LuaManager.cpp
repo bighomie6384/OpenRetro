@@ -13,7 +13,6 @@ class Script;
 lua_State *global;
 std::map<lua_State*, Script*> activeScripts;
 
-
 /*
     Basically each script is treated as a coroutine, when wait() is called it gets yielded and is pushed onto the scheduler queue to be resumed.
 */
