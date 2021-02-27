@@ -1,19 +1,38 @@
 #include "WorldWrapper.hpp"
 #include "LuaWrapper.hpp"
+#include "PlayerWrapper.hpp"
 #include "EventWrapper.hpp"
+
+#include "../PlayerManager.hpp"
 
 static lEvent *addedEvent;
 static lEvent *removedEvent;
 
 #define LIBNAME "world"
 
-int wrld_plrAdded(lua_State *state) {
+int wrld_getPlrAdded(lua_State *state) {
     LuaManager::Event::push(state, addedEvent);
     return 1;
 }
 
-int wrld_plrRemoved(lua_State *state) {
+int wrld_getPlrRemoved(lua_State *state) {
     LuaManager::Event::push(state, removedEvent);
+    return 1;
+}
+
+int wrld_getPlayers(lua_State *state) {
+    // create a new lua table and push it onto the stack
+    int entries = 0;
+    lua_newtable(state);
+
+    // walk through the current list of players and add them to the table
+    for (auto pair : PlayerManager::players) {
+        lua_pushinteger(state, ++entries);
+        LuaManager::Player::push(state, pair.first);
+        lua_rawset(state, -3);
+    }
+
+    // returns the player table :)
     return 1;
 }
 
@@ -39,8 +58,9 @@ int wrld_index(lua_State *state) {
 }
 
 static const luaL_reg getters[] {
-    {"onPlayerAdded", wrld_plrAdded},
-    {"onPlayerRemoved", wrld_plrRemoved},
+    {"onPlayerAdded", wrld_getPlrAdded},
+    {"onPlayerRemoved", wrld_getPlrRemoved},
+    {"players", wrld_getPlayers},
     {0, 0}
 };
 

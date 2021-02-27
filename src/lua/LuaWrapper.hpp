@@ -72,6 +72,7 @@ public:
 
 private:
     std::map<lua_State*, std::vector<rawEvent*>> refs; // references given by luaL_ref to our callable value passed by lua
+    std::map<lua_State*, std::vector<rawEvent*>> clearQueue; // since we don't want to clear things during while the state is running
 
     void registerEvent(lua_State *state, rawEvent *event) {
         auto iter = refs.find(state);
@@ -87,6 +88,66 @@ private:
         if (event->type == EVENT_CALLBACK)
             luaL_unref(state, LUA_REGISTRYINDEX, event->callback);
         delete event;
+    }
+
+    void queueFlush(lua_State *state) {
+        clearQueue[state] = refs[state];
+    }
+
+    void queueFlush(rawEvent *event) {
+        // first, find the state
+        for (auto &e : refs) {
+            lua_State *state = e.first;
+            for (rawEvent *re : e.second) {
+                if (re == event) {
+                    // we found it so add it to the clearQueue
+                    auto iter = clearQueue.find(state);
+
+                    // if the state hasn't registered any flushes, make the hashmap index and vector
+                    if (iter == clearQueue.end())
+                        (clearQueue[state] = std::vector<rawEvent*>()).push_back(event);
+                    else // else just push it to the already existing vector
+                        (*iter).second.push_back(event);
+
+                    return;
+                }
+            }
+        }
+    }
+
+    // returns true if the state was removed from refs
+    bool flush(lua_State *state) {
+        auto iter = clearQueue.find(state);
+
+        // if there's no events to flush, return
+        if (iter == clearQueue.end())
+            return false;
+        
+        std::vector<rawEvent*> &refsVec = refs[state];
+        
+        // flush everything in this state
+        for (rawEvent *e : (*iter).second) {
+            for (auto rIter = refsVec.begin(); rIter != refsVec.end();)
+                // if this is the event, remove it and break!
+                if ((*rIter) == e) {
+                    refsVec.erase(rIter);
+                    break;
+                } else ++rIter;
+
+            // free the event
+            freeEvent(state, e);
+        }
+    
+        // remove it from the queue
+        clearQueue.erase(iter);
+
+        // remove the state if the vector is empty
+        if (refsVec.empty()) {
+            refs.erase(state);
+            return true;
+        }
+
+        return false;
     }
 
 public:
@@ -138,41 +199,22 @@ public:
         }
 
         refs.clear();
+        clearQueue.clear();
     }
 
     // disconnects a specific event
     void clear(rawEvent *event) {
-        for (auto &e : refs) {
-            for (auto iter = e.second.begin(); iter != e.second.end();) {
-                // if this is the event, remove it and return!
-                if ((*iter) == event) {
-                    freeEvent(e.first, *iter);
-                    e.second.erase(iter);
-                    return;
-                } else
-                    ++iter;
-            }
-        }
+        queueFlush(event);
     }
 
     // disconnects all events to this state
     void clear(lua_State *state) {
-        // grab the iterator, if the state doesn't exist in this event just return
-        auto iter = refs.find(state);
-        if (iter == refs.end())
-            return;
-
-        // walk through the refs and unref() them from the state
-        for (rawEvent *ref : (*iter).second) {
-            freeEvent(state, ref);
-        }
-
-        // finally, erase it from the hashmap
-        refs.erase(iter);
+        queueFlush(state);
     }
 
     template<class... Args> inline void call(Args... args) {
-        for (auto &e : refs) {
+        for (auto rIter = refs.begin(); rIter != refs.end();) {
+            auto &e = *rIter;
             for (auto iter = e.second.begin(); iter != e.second.end();) {
                 rawEvent *ref = (*iter);
                 switch (ref->type) {
@@ -207,6 +249,10 @@ public:
                         break;
                 }
             }
+
+            // flush the queued events
+            if (!flush(e.first))
+                rIter++;
         }
     }
 };
