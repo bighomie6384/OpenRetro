@@ -53,38 +53,98 @@ inline static int lua_autoPush(lua_State* state, int nargs, T arg, Rest... rest)
     return lua_autoPush(state, ++nargs, rest...);
 }
 
-// callback event handler, allows multiple callbacks connected to one event
+enum eventType {
+    EVENT_CALLBACK, // standard callback
+    EVENT_WAIT // state needs to be resumed with the arguments
+};
+
+
 class lEvent {
+public:
+    struct rawEvent {
+        eventType type;
+        lRegistry callback; // unused for EVENT_WAIT
+    };
+
 private:
-    std::map<lua_State*, std::vector<lRegistry>> refs; // references given by luaL_ref to our callable value passed by lua
+    std::map<lua_State*, std::vector<rawEvent*>> refs; // references given by luaL_ref to our callable value passed by lua
+
+    void registerEvent(lua_State *state, rawEvent *event) {
+        auto iter = refs.find(state);
+
+        // if the state hasn't registered any callbacks, make the hashmap index and vector
+        if (iter == refs.end())
+            (refs[state] = std::vector<rawEvent*>()).push_back(event);
+        else // else just push it to the already existing vector
+            (*iter).second.push_back(event);
+    }
+
+    void freeEvent(lua_State *state, rawEvent *event) {
+        if (event->type == EVENT_CALLBACK)
+            luaL_unref(state, LUA_REGISTRYINDEX, event->callback);
+        delete event;
+    }
 
 public:
     lEvent() {
-        refs = std::map<lua_State*, std::vector<lRegistry>>();
+        refs = std::map<lua_State*, std::vector<rawEvent*>>();
     }
 
-    void addCallback(lua_State *state, lRegistry ref) {
-        auto iter = refs.find(state);
-        
-        // if the state hasn't registered any callbacks, make the hashmap index and vector
-        if (iter == refs.end())
-            (refs[state] = std::vector<lRegistry>()).push_back(ref);
-        else // else just push it to the already existing vector
-            (*iter).second.push_back(ref);
+    rawEvent* addCallback(lua_State *state, lRegistry ref) {
+        rawEvent *newEvent = new rawEvent();
+        newEvent->type = EVENT_CALLBACK;
+        newEvent->callback = ref;
+        registerEvent(state, newEvent);
+
+        return newEvent;
+    }
+
+    // yields the thread until the event is called
+    rawEvent* addWait(lua_State *state) {
+        rawEvent *newEvent = new rawEvent();
+        newEvent->type = EVENT_WAIT;
+        registerEvent(state, newEvent);
+
+        return newEvent;
+    }
+
+    // returns true if the event is still active
+    bool checkAlive(rawEvent *event) {
+        for (auto &e : refs)
+            for (rawEvent *ref : e.second)
+                if (ref == event)
+                    return true;
+
+        return false;
     }
 
     // walks through the refs and unregister them from the state
     void clear() {
         for (auto &e : refs) {
-            for (lRegistry ref : e.second) {
-                luaL_unref(e.first, LUA_REGISTRYINDEX, ref);
+            for (rawEvent *ref : e.second) {
+                freeEvent(e.first, ref);
             }
         }
 
         refs.clear();
     }
 
-    // only clears callbacks registered to this state
+    // disconnects a specific event
+    void clear(rawEvent *event) {
+        for (auto &e : refs) {
+            for (auto iter = e.second.begin(); iter != e.second.end();) {
+                // if this is the event, remove it and return!
+                if ((*iter) == event) {
+                    freeEvent(e.first, *iter);
+                    e.second.erase(iter);
+                    return;
+                } else
+                    ++iter;
+            }
+        }
+    }
+
+    // disconnects all events to this state
     void clear(lua_State *state) {
         // grab the iterator, if the state doesn't exist in this event just return
         auto iter = refs.find(state);
@@ -92,8 +152,8 @@ public:
             return;
 
         // walk through the refs and unref() them from the state
-        for (lRegistry ref : (*iter).second) {
-            luaL_unref((*iter).first, LUA_REGISTRYINDEX, ref);
+        for (rawEvent *ref : (*iter).second) {
+            freeEvent(state, ref);
         }
 
         // finally, erase it from the hashmap
@@ -102,16 +162,39 @@ public:
 
     template<class... Args> inline void call(Args... args) {
         for (auto &e : refs) {
-            for (lRegistry ref : e.second) {
-                // make thread for this callback
-                lua_State *nThread = lua_newthread(e.first);
+            for (auto iter = e.second.begin(); iter != e.second.end();) {
+                rawEvent *ref = (*iter);
+                switch (ref->type) {
+                    case EVENT_CALLBACK: {
+                        // make thread for this callback
+                        lua_State *nThread = lua_newthread(e.first);
 
-                // push the callable first, the push all the arguments
-                lua_rawgeti(nThread, LUA_REGISTRYINDEX, (int)ref);
-                int nargs = lua_autoPush(nThread, 0, args...);
+                        // push the callable first, the push all the arguments
+                        lua_rawgeti(nThread, LUA_REGISTRYINDEX, (int)ref->callback);
+                        int nargs = lua_autoPush(nThread, 0, args...);
 
-                // then call it :)
-                yieldCall(nThread, nargs);
+                        // then call it :)
+                        yieldCall(nThread, nargs);
+
+                        // increment the iterator
+                        ++iter;
+                        break;
+                    }
+                    case EVENT_WAIT: {
+                        // remove this event from the queue
+                        freeEvent(e.first, ref);
+                        e.second.erase(iter);
+
+                        // the :wait() will return the passed arguments
+                        int nargs = lua_autoPush(e.first, 0, args...);
+                        yieldCall(e.first, nargs);
+                        break;
+                    }
+                    default:
+                        std::cout << "[WARN] INVALID EVENT TYPE : " << ref->type << std::endl;
+                        ++iter;
+                        break;
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 #include "WorldWrapper.hpp"
 #include "LuaWrapper.hpp"
+#include "EventWrapper.hpp"
 
 static lEvent addedEvent;
 static lEvent removedEvent;
@@ -7,42 +8,56 @@ static lEvent removedEvent;
 #define LIBNAME "world"
 
 int wrld_plrAdded(lua_State *state) {
-    int nargs = lua_gettop(state);
-
-    // for each argument passed, check that it's a function and add it to the playerAdded event
-    for (int i = 1; i <= nargs; i++) {
-        luaL_checktype(state, i, LUA_TFUNCTION);
-        lua_pushvalue(state, i);
-        addedEvent.addCallback(state, luaL_ref(state, LUA_REGISTRYINDEX));
-    }
-
-    // we don't push anything
-    return 0;
+    LuaManager::Event::push(state, &addedEvent);
+    return 1;
 }
 
 int wrld_plrRemoved(lua_State *state) {
-    int nargs = lua_gettop(state);
-
-    // for each argument passed, check that it's a function and add it to the playerRemoved event
-    for (int i = 1; i <= nargs; i++) {
-        luaL_checktype(state, i, LUA_TFUNCTION);
-        lua_pushvalue(state, i);
-        removedEvent.addCallback(state, luaL_ref(state, LUA_REGISTRYINDEX));
-    }
-
-    // we don't push anything
-    return 0;
+    LuaManager::Event::push(state, &removedEvent);
+    return 1;
 }
 
-static const luaL_reg funcs[] {
+int wrld_index(lua_State *state) {
+    // grab the function from the getters lookup table
+    lua_pushstring(state, "__wrldGETTERS");
+    lua_rawget(state, LUA_REGISTRYINDEX);
+    lua_pushvalue(state, 2);
+    lua_rawget(state, -2);
+
+    // if it's nil, return nil
+    if (lua_isnil(state, -1)) {
+        lua_pushnil(state);
+        return 1;
+    }
+
+    // push userdata & call the function
+    lua_pushvalue(state, 1);
+    lua_call(state, 1, 1);
+
+    // return # of results
+    return 1;    
+}
+
+static const luaL_reg getters[] {
     {"onPlayerAdded", wrld_plrAdded},
     {"onPlayerRemoved", wrld_plrRemoved},
     {0, 0}
 };
 
 void LuaManager::World::init(lua_State *state) {
-    luaL_register(state, LIBNAME, funcs);
-    lua_pop(state, 1);
+    lua_newtable(state);
+    luaL_newmetatable(state, LIBNAME);
+    lua_pushstring(state, "__index");
+    lua_pushcfunction(state, wrld_index);
+    lua_rawset(state, -3); // sets meta.__index = plr_index
+    lua_setmetatable(state, -2); // sets world.__metatable = meta
+    lua_setglobal(state, LIBNAME);
+
+    // setup the _wrldGETTERS table in the registry
+    lua_pushstring(state, "__wrldGETTERS");
+    lua_newtable(state);
+    luaL_register(state, NULL, getters);
+    lua_rawset(state, LUA_REGISTRYINDEX);
 
     addedEvent = lEvent();
     removedEvent = lEvent();

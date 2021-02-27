@@ -2,6 +2,7 @@
 #include "PlayerWrapper.hpp"
 #include "WorldWrapper.hpp"
 #include "LuaWrapper.hpp"
+#include "EventWrapper.hpp"
 
 #include <vector>
 
@@ -91,6 +92,7 @@ void LuaManager::init() {
     luaopen_debug(global);
 
     // now load our libraries
+    Event::init(global);
     Player::init(global);
     World::init(global);
 

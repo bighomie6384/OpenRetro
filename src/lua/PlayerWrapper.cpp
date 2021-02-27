@@ -1,5 +1,6 @@
 #include "PlayerWrapper.hpp"
 #include "LuaWrapper.hpp"
+#include "EventWrapper.hpp"
 
 #include "../ChatManager.hpp"
 #include <map>
@@ -70,40 +71,26 @@ static void pushPlayer(lua_State *state, CNSocket *sock) {
     lua_setmetatable(state, -2);
 }
 
-static int plr_onChat(lua_State *state) {
-    int nargs = lua_gettop(state);
+static int plr_getOnChat(lua_State *state) {
     PlayerEvents *evnt = grabEvents(state, 1);
 
     // sanity check
     if (evnt == NULL)
         return 0;
 
-    // for each argument passed, check that it's a function and add it to the event
-    for (int i = 2; i <= nargs; i++) {
-        luaL_checktype(state, i, LUA_TFUNCTION);
-        lua_pushvalue(state, i);
-        evnt->onChat.addCallback(state, luaL_ref(state, LUA_REGISTRYINDEX));
-    }
-
-    return 0;
+    LuaManager::Event::push(state, &evnt->onChat);
+    return 1;
 }
 
-static int plr_onRemoved(lua_State *state) {
-    int nargs = lua_gettop(state);
+static int plr_getOnDisconnect(lua_State *state) {
     PlayerEvents *evnt = grabEvents(state, 1);
 
     // sanity check
     if (evnt == NULL)
         return 0;
 
-    // for each argument passed, check that it's a function and add it to the event
-    for (int i = 2; i <= nargs; i++) {
-        luaL_checktype(state, i, LUA_TFUNCTION);
-        lua_pushvalue(state, i);
-        evnt->onDisconnect.addCallback(state, luaL_ref(state, LUA_REGISTRYINDEX));
-    }
-
-    return 0;
+    LuaManager::Event::push(state, &evnt->onDisconnect);
+    return 1;
 }
 
 static int plr_moveTo(lua_State *state) {
@@ -282,6 +269,8 @@ static const luaL_reg getters[] = {
     {"y", plr_getY},
     {"z", plr_getZ},
     {"GM", plr_getGM}, // grabs account level
+    {"onChat", plr_getOnChat},
+    {"onDisconnect", plr_getOnDisconnect},
     {0, 0}
 };
 
@@ -291,8 +280,6 @@ static const luaL_reg setters[] = {
 };
 
 static const luaL_reg methods[] = {
-    {"onChat", plr_onChat},
-    {"onRemoved", plr_onRemoved},
     {"moveTo", plr_moveTo},
     {"sendMessage", plr_msg},
     {"setSpeed", plr_setSpeed},
@@ -312,7 +299,6 @@ void LuaManager::Player::init(lua_State *state) {
     lua_pushstring(state, "__newindex");
     lua_pushcfunction(state, plr_newindex);
     lua_rawset(state, -3); // sets meta.__newindex = plr_newindex
-    lua_pop(state, 2); // pop the metatable and methods table off the stack
 
     // create the methods table
     lua_pushstring(state, "__plrMETHODS");
@@ -331,6 +317,7 @@ void LuaManager::Player::init(lua_State *state) {
     lua_newtable(state);
     luaL_register(state, NULL, setters);
     lua_rawset(state, LUA_REGISTRYINDEX);
+    lua_pop(state, 5); // pop everything off the stack
 
     // setup the map
     eventMap = std::map<CNSocket*, PlayerEvents>();

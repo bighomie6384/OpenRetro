@@ -54,6 +54,7 @@ CXXSRC=\
 	src/lua/LuaManager.cpp\
 	src/lua/PlayerWrapper.cpp\
 	src/lua/WorldWrapper.cpp\
+	src/lua/EventWrapper.cpp\
 
 # headers (for timestamp purposes)
 CHDR=\
@@ -96,6 +97,7 @@ CXXHDR=\
 	src/lua/PlayerWrapper.hpp\
 	src/lua/WorldWrapper.hpp\
 	src/lua/LuaWrapper.hpp\
+	src/lua/EventWrapper.hpp\
 
 COBJ=$(CSRC:.c=.o)
 CXXOBJ=$(CXXSRC:.cpp=.o)
