@@ -3,7 +3,11 @@
 #include "../PlayerManager.hpp"
 
 #include <string>
-#include <lua5.1/lua.hpp>
+#ifdef _WIN32
+    #include <luajit/lua.hpp>
+#else
+    #include <lua.hpp>
+#endif
 
 typedef int lRegistry;
 

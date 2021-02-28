@@ -44,7 +44,7 @@ add_executable(openfusion ${SOURCES})
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
 target_link_libraries(openfusion sqlite3)
-target_link_libraries(openfusion lua)
+target_link_libraries(openfusion luajit)
 
 # Use pthreads if not generating a VS solution or MinGW makefile (because MinGW will prefer Win32 threads)
 # Checking if the compiler ID is MSVC will allow us to open the project as a CMake project in VS.

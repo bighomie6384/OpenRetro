@@ -277,7 +277,7 @@ static int plr_newindex(lua_State *state) {
     return 0;
 }
 
-static const luaL_reg getters[] = {
+static const luaL_Reg getters[] = {
     {"name", plr_getName},
     {"x", plr_getX},
     {"y", plr_getY},
@@ -288,12 +288,12 @@ static const luaL_reg getters[] = {
     {0, 0}
 };
 
-static const luaL_reg setters[] = {
+static const luaL_Reg setters[] = {
     {"GM", plr_setGM}, // grabs account level
     {0, 0}
 };
 
-static const luaL_reg methods[] = {
+static const luaL_Reg methods[] = {
     {"moveTo", plr_moveTo},
     {"sendMessage", plr_msg},
     {"setSpeed", plr_setSpeed},

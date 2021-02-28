@@ -57,7 +57,7 @@ int wrld_index(lua_State *state) {
     return 1;    
 }
 
-static const luaL_reg getters[] {
+static const luaL_Reg getters[] {
     {"onPlayerAdded", wrld_getPlrAdded},
     {"onPlayerRemoved", wrld_getPlrRemoved},
     {"players", wrld_getPlayers},
