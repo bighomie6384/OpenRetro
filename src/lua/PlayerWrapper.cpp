@@ -314,6 +314,7 @@ void LuaManager::Player::init(lua_State *state) {
     lua_pushstring(state, "__newindex");
     lua_pushcfunction(state, plr_newindex);
     lua_rawset(state, -3); // sets meta.__newindex = plr_newindex
+    lua_pop(state, 2); // pop methods & meta
 
     // create the methods table
     lua_pushstring(state, "__plrMETHODS");
@@ -332,7 +333,6 @@ void LuaManager::Player::init(lua_State *state) {
     lua_newtable(state);
     luaL_register(state, NULL, setters);
     lua_rawset(state, LUA_REGISTRYINDEX);
-    lua_pop(state, 5); // pop everything off the stack
 
     // setup the map
     eventMap = std::map<CNSocket*, PlayerEvents>();
