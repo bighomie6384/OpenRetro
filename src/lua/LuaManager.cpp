@@ -81,15 +81,6 @@ void luaScheduler(CNServer *serv, time_t currtime) {
         } else // go to the next iteration
             ++iter;
     }
-
-    /*
-        We have to flush the event queue when we know for sure that we're not in the callstack of any call to lEvent->call(), since that iterates over
-    the current callback queue. We don't want to free a rawEvent* while we're still iterating, and since luaScheduler is guaranteed to be called by CNServer
-    (aka never lEvent->call()) this is the safest and most practical place to flush the discarded events.
-    */
-    for (lEvent *event : activeEvents) {
-        event->flushClear();
-    }
 }
 
 void LuaManager::init() {

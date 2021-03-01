@@ -16,10 +16,10 @@ std::unordered_set<lEvent*> activeEvents;
 
 struct lstnrData {
     lEvent *event;
-    lEvent::rawEvent *rawListener;
+    uint32_t rawListener;
 };
 
-static void pushListener(lua_State *state, lEvent *event, lEvent::rawEvent *listener) {
+static void pushListener(lua_State *state, lEvent *event, uint32_t listener) {
     lstnrData *lstnr = (lstnrData*)lua_newuserdata(state, sizeof(lstnrData));
     lstnr->event = event;
     lstnr->rawListener = listener;
@@ -72,12 +72,6 @@ static lstnrData *grabListener(lua_State *state, int indx) {
     if (activeEvents.find(lstnr->event) == activeEvents.end())
         return NULL;
 
-    // now check and make sure that the event is still active
-    if (!lstnr->event->checkAlive(lstnr->rawListener)) {
-        luaL_argerror(state, indx, "Listener has been disconnnected!");
-        return NULL;
-    }
-
     // return the pointer to the lEvent
     return lstnr;
 }
@@ -122,7 +116,31 @@ static int lstnr_disconnect(lua_State *state) {
         return 0;
 
     // disconnect the event
-    lstnr->event->clear(lstnr->rawListener);
+    lstnr->event->disconnectEvent(lstnr->rawListener);
+    return 0;
+}
+
+static int lstnr_reconnect(lua_State *state) {
+    lstnrData *lstnr = grabListener(state, 1);
+
+    // sanity check
+    if (lstnr == NULL)
+        return 0;
+
+    // disconnect the event
+    lstnr->event->reconnectEvent(lstnr->rawListener);
+    return 0;
+}
+
+static int lstnr_gc(lua_State *state) {
+    lstnrData *lstnr = grabListener(state, 1);
+
+    std::cout << "clearing event listener!" << std::endl;
+
+    // if the listener is disabled, clear it
+    if (lstnr->event->isDisabled(lstnr->rawListener))
+        lstnr->event->clear(lstnr->rawListener);
+    
     return 0;
 }
 
@@ -134,6 +152,7 @@ static luaL_Reg evnt_methods[] = {
 
 static luaL_Reg lstnr_methods[] = {
     {"disconnect", lstnr_disconnect},
+    {"reconnect", lstnr_reconnect},
     {0, 0}
 };
 
@@ -152,6 +171,9 @@ void LuaManager::Event::init(lua_State *state) {
     lua_pushstring(state, "__index");
     lua_newtable(state);
     luaL_register(state, NULL, lstnr_methods);
+    lua_rawset(state, -3);
+    lua_pushstring(state, "__gc");
+    lua_pushcfunction(state, lstnr_gc);
     lua_rawset(state, -3);
 
     // pop the tables off the stack

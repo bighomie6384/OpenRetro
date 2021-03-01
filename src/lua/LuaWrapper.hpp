@@ -6,8 +6,8 @@
 
 #include <string>
 #include <map>
-#include <vector>
 #include <unordered_set>
+#include <cassert>
 
 #include "LuaManager.hpp"
 #include "PlayerWrapper.hpp"
@@ -64,104 +64,34 @@ class lEvent;
 extern std::unordered_set<lEvent*> activeEvents;
 
 class lEvent {
-public:
+private:
     struct rawEvent {
-        eventType type;
-        bool disabled;
+        lua_State *state;
         lRegistry callback; // unused for EVENT_WAIT
+        bool disabled;
+        eventType type;
     };
 
-private:
-    std::map<lua_State*, std::vector<rawEvent*>> refs; // references given by luaL_ref to our callable value passed by lua
-    std::map<lua_State*, std::vector<rawEvent*>> clearQueue; // since we don't want to clear things during while the state is running
+    uint32_t nextId; // next ID
+    std::map<uint32_t, rawEvent> events;
 
-    void registerEvent(lua_State *state, rawEvent *event) {
-        auto iter = refs.find(state);
+    uint32_t registerEvent(lua_State *state, lRegistry callback, eventType type) {
+        uint32_t id = nextId++;
 
-        // if the state hasn't registered any callbacks, make the hashmap index and vector
-        if (iter == refs.end())
-            (refs[state] = std::vector<rawEvent*>()).push_back(event);
-        else // else just push it to the already existing vector
-            (*iter).second.push_back(event);
+        assert(nextId < UINT32_MAX);
+        events[id] = {state, callback, false, type};
+        return id;
     }
 
-    void freeEvent(lua_State *state, rawEvent *event) {
+    void freeEvent(rawEvent *event) {
         if (event->type == EVENT_CALLBACK)
-            luaL_unref(state, LUA_REGISTRYINDEX, event->callback);
-        delete event;
-    }
-
-    void addFlush(lua_State *state, rawEvent *event) {
-        // first, disable the event
-        event->disabled = true;
-
-        // we found it so add it to the clearQueue
-        auto iter = clearQueue.find(state);
-
-        // if the state hasn't registered any flushes, make the hashmap index and vector
-        if (iter == clearQueue.end())
-            (clearQueue[state] = std::vector<rawEvent*>()).push_back(event);
-        else // else just push it to the already existing vector
-            (*iter).second.push_back(event);
-    }
-
-    void queueFlush(lua_State *state) {
-        // queue the state to be flushed next scheduler cycle
-        clearQueue[state] = refs[state];
-
-        // walk through and disable the events
-        for (rawEvent *event : clearQueue[state])
-            event->disabled = true;
-    }
-
-    void queueFlush(rawEvent *event) {
-        // find the state and add the event to the flush queue
-        for (auto &e : refs) {
-            lua_State *state = e.first;
-            for (rawEvent *re : e.second) {
-                if (re == event) {
-                    addFlush(state, event);
-                    return;
-                }
-            }
-        }
-    }
-
-    // returns true if the state was removed from refs
-    bool flush(lua_State *state) {
-        auto iter = clearQueue.find(state);
-
-        // if there's no events to flush, return
-        if (iter == clearQueue.end())
-            return false;
-        
-        std::vector<rawEvent*> &refsVec = refs[state];
-        
-        // flush everything in this state
-        for (rawEvent *e : (*iter).second) {
-            for (auto rIter = refsVec.begin(); rIter != refsVec.end();)
-                // if this is the event, remove it and break!
-                if ((*rIter) == e) {
-                    refsVec.erase(rIter);
-                    break;
-                } else ++rIter;
-
-            // free the event
-            freeEvent(state, e);
-        }
-
-        // remove the state if the vector is empty
-        if (refsVec.empty()) {
-            refs.erase(state);
-            return true;
-        }
-
-        return false;
+            luaL_unref(event->state, LUA_REGISTRYINDEX, event->callback);
     }
 
 public:
     lEvent() {
-        refs = std::map<lua_State*, std::vector<rawEvent*>>();
+        events = std::map<uint32_t, rawEvent>();
+        nextId = 0; // start at 0
         activeEvents.insert(this);
     }
 
@@ -171,101 +101,115 @@ public:
         clear();
     }
 
-    rawEvent* addCallback(lua_State *state, lRegistry ref) {
-        rawEvent *newEvent = new rawEvent();
-        newEvent->type = EVENT_CALLBACK;
-        newEvent->disabled = false;
-        newEvent->callback = ref;
-        registerEvent(state, newEvent);
-
-        return newEvent;
+    uint32_t addCallback(lua_State *state, lRegistry ref) {
+        return registerEvent(state, ref, EVENT_CALLBACK);
     }
 
     // yields the thread until the event is called
-    rawEvent* addWait(lua_State *state) {
-        rawEvent *newEvent = new rawEvent();
-        newEvent->type = EVENT_WAIT;
-        newEvent->disabled = false;
-        registerEvent(state, newEvent);
-
-        return newEvent;
+    uint32_t addWait(lua_State *state) {
+        return registerEvent(state, 0, EVENT_WAIT);
     }
 
-    // returns true if the event is still active
-    bool checkAlive(rawEvent *event) {
-        for (auto &e : refs)
-            for (rawEvent *ref : e.second)
-                if (ref == event)
-                    return true;
-
-        return false;
-    }
-
-    // walks through the refs and unregister them from the state
+    // walks through the events and unregister them from the state
     void clear() {
-        for (auto &e : refs) {
-            for (rawEvent *ref : e.second) {
-                freeEvent(e.first, ref);
-            }
+        for (auto &pair : events) {
+            freeEvent(&pair.second);
         }
 
-        refs.clear();
-        clearQueue.clear();
+        events.clear();
     }
 
-    // disconnects a specific event
-    void clear(rawEvent *event) {
-        queueFlush(event);
+    // free the event based on id
+    void clear(uint32_t id) {
+        auto iter = events.find(id);
+
+        // sanity check
+        if (iter == events.end())
+            return;
+
+        // free the event
+        freeEvent(&(*iter).second);
+        events.erase(iter);
     }
 
-    // disconnects all events to this state
+    // frees all events to this state
     void clear(lua_State *state) {
-        queueFlush(state);
+        for (auto iter = events.begin(); iter != events.end();) {
+            rawEvent *event = &(*iter).second;
+
+            // if this is our state, free this event and erase it from the map
+            if (event->state == state) {
+                freeEvent(event);
+                events.erase(iter++);
+            } else
+                ++iter;
+        }
     }
 
-    void flushClear() {
-        for (auto rIter = clearQueue.begin(); rIter != clearQueue.end();) {
-            // flush the queued events
-            flush((*rIter).first);
-            clearQueue.erase(rIter++);
-        }
+    void disconnectEvent(uint32_t id) {
+        auto iter = events.find(id);
+
+        // sanity check
+        if (iter == events.end())
+            return;
+        
+        (*iter).second.disabled = true;
+    }
+
+    void reconnectEvent(uint32_t id) {
+        auto iter = events.find(id);
+
+        // sanity check
+        if (iter == events.end())
+            return;
+        
+        (*iter).second.disabled = false;
+    }
+
+    bool isDisabled(uint32_t id) {
+        auto iter = events.find(id);
+
+        // sanity check
+        if (iter == events.end())
+            return true;
+        
+        return (*iter).second.disabled;
     }
 
     template<class... Args> inline void call(Args... args) {
-        auto refsClone = refs; // so if a callback is added, we don't iterate into undefined behavior
-        for (auto rIter = refsClone.begin(); rIter != refsClone.end();) {
-            auto &e = *(rIter++);
-            for (rawEvent *ref : e.second) {
-                // if the event is disabled, skip it
-                if (ref->disabled)
-                    continue;
+        auto eventsClone = events; // so if a callback is added, we don't iterate into undefined behavior
+        for (auto &pair : eventsClone) {
+            rawEvent *event = &pair.second;
 
-                switch (ref->type) {
-                    case EVENT_CALLBACK: {
-                        // make thread for this callback
-                        lua_State *nThread = lua_newthread(e.first);
+            // if the event is disabled, skip it
+            if (event->disabled)
+                continue;
 
-                        // push the callable first, the push all the arguments
-                        lua_rawgeti(nThread, LUA_REGISTRYINDEX, (int)ref->callback);
-                        int nargs = lua_autoPush(nThread, 0, args...);
+            switch (event->type) {
+                case EVENT_CALLBACK: {
+                    // make thread for this callback
+                    lua_State *nThread = lua_newthread(event->state);
 
-                        // then call it :)
-                        yieldCall(nThread, nargs);
-                        break;
-                    }
-                    case EVENT_WAIT: {
-                        // remove this event from the queue
-                        addFlush(e.first, ref);
+                    // push the callable first, the push all the arguments
+                    lua_rawgeti(nThread, LUA_REGISTRYINDEX, (int)event->callback);
+                    int nargs = lua_autoPush(nThread, 0, args...);
 
-                        // the :wait() will return the passed arguments
-                        int nargs = lua_autoPush(e.first, 0, args...);
-                        yieldCall(e.first, nargs);
-                        break;
-                    }
-                    default:
-                        std::cout << "[WARN] INVALID EVENT TYPE : " << ref->type << std::endl;
-                        break;
+                    // then call it :)
+                    yieldCall(nThread, nargs);
+                    break;
                 }
+                case EVENT_WAIT: {
+                    // erase this event
+                    events.erase(pair.first);
+
+                    // the :wait() will return the passed arguments
+                    int nargs = lua_autoPush(event->state, 0, args...);
+                    yieldCall(event->state, nargs);
+                    break;
+                }
+                default:
+                    std::cout << "[WARN] INVALID EVENT TYPE : " << event->type << std::endl;
+                    break;
             }
         }
     }

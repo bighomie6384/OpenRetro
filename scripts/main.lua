@@ -38,7 +38,7 @@ function makeCallback(player)
             script = player.onChat:wait()
 
             -- reconnect the event
-            listener = player.onChat:listen(callback)
+            listener:reconnect()
 
             -- compile the script and run it!
             local func, err = loadstring(script)
