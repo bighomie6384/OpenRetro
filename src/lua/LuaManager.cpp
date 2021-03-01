@@ -3,7 +3,11 @@
 #include "WorldWrapper.hpp"
 #include "LuaWrapper.hpp"
 #include "EventWrapper.hpp"
+#include "NPCWrapper.hpp"
 
+#include "../settings.hpp"
+
+#include <filesystem>
 #include <vector>
 
 time_t getTime();
@@ -94,6 +98,7 @@ void LuaManager::init() {
     Event::init(global);
     Player::init(global);
     World::init(global);
+    NPC::init(global);
 
     // add wait()
     lua_register(global, "wait", OF_wait);
@@ -101,10 +106,17 @@ void LuaManager::init() {
     activeScripts = std::map<lua_State*, Script*>();
 
     REGISTER_SHARD_TIMER(luaScheduler, 200);
+
+    // for each file in the scripts director, load the script
+    std::filesystem::path dir(settings::SCRIPTSDIR);
+    for (auto &d : std::filesystem::directory_iterator(dir)) {
+        if (d.is_regular_file() && ((std::string)d.path()).find(".lua") != std::string::npos)
+            runScript(d.path());
+    }
 }
 
 void LuaManager::runScript(std::string filename) {
-    Script *script = new Script(filename);
+    new Script(filename);
 }
 
 void LuaManager::stopScripts() {

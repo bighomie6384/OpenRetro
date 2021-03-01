@@ -59,6 +59,7 @@ int settings::MONITORINTERVAL = 5000;
 // event mode settings
 int settings::EVENTMODE = 0;
 int settings::EVENTCRATECHANCE = 10;
+std::string settings::SCRIPTSDIR = "scripts";
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -72,6 +73,7 @@ void settings::init() {
         return;
     }
 
+    SCRIPTSDIR = reader.Get("", "scripts", SCRIPTSDIR);
     APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);

@@ -31,6 +31,7 @@ namespace settings {
     extern int MONITORPORT;
     extern int MONITORINTERVAL;
     extern bool DISABLEFIRSTUSEFLAG;
+    extern std::string SCRIPTSDIR;
 
     void init();
 }

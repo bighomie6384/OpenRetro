@@ -5,8 +5,8 @@ CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
 # If compiling with ASAN, invoke like this: $ LSAN_OPTIONS=suppressions=suppr.txt bin/fusion
 CFLAGS=-O3 #-g3 -fsanitize=address
-CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I/usr/include/luajit-2.1 #-g3 -fsanitize=address
-LDFLAGS=-lpthread -lsqlite3 -lluajit-5.1 #-fsanitize=address
+CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -g -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I/usr/include/luajit-2.1 #-g3 -fsanitize=address
+LDFLAGS=-lpthread -lsqlite3 -lluajit-5.1 -fsanitize=address -lstdc++fs
 # specifies the name of our exectuable
 SERVER=bin/fusion
 
@@ -19,7 +19,7 @@ WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
 WIN_CXXFLAGS=-D_WIN32_WINNT=0x0601 -Wall -Wno-unknown-pragmas -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I/usr/include/luajit-2.1 #-g3 -fsanitize=address
-WIN_LDFLAGS=-static -lws2_32 -lwsock32 -lsqlite3 -lluajit-5.1 #-g3 -fsanitize=address
+WIN_LDFLAGS=-static -lws2_32 -lwsock32 -lsqlite3 -lluajit-5.1 -lstdc++fs #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
 CSRC=\
@@ -55,6 +55,7 @@ CXXSRC=\
 	src/lua/PlayerWrapper.cpp\
 	src/lua/WorldWrapper.cpp\
 	src/lua/EventWrapper.cpp\
+	src/lua/NPCWrapper.cpp\
 
 # headers (for timestamp purposes)
 CHDR=\

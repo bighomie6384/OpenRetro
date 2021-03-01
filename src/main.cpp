@@ -108,8 +108,6 @@ int main() {
     Database::open();
     LuaManager::init();
 
-    LuaManager::runScript("main.lua");
-
     switch (settings::EVENTMODE) {
     case 0: break; // no event
     case 1: std::cout << "[INFO] Event active. Hey, Hey It's Knishmas!" << std::endl; break;
