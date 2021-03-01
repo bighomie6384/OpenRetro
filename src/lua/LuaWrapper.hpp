@@ -67,6 +67,7 @@ class lEvent {
 public:
     struct rawEvent {
         eventType type;
+        bool disabled;
         lRegistry callback; // unused for EVENT_WAIT
     };
 
@@ -90,25 +91,36 @@ private:
         delete event;
     }
 
+    void addFlush(lua_State *state, rawEvent *event) {
+        // first, disable the event
+        event->disabled = true;
+
+        // we found it so add it to the clearQueue
+        auto iter = clearQueue.find(state);
+
+        // if the state hasn't registered any flushes, make the hashmap index and vector
+        if (iter == clearQueue.end())
+            (clearQueue[state] = std::vector<rawEvent*>()).push_back(event);
+        else // else just push it to the already existing vector
+            (*iter).second.push_back(event);
+    }
+
     void queueFlush(lua_State *state) {
+        // queue the state to be flushed next scheduler cycle
         clearQueue[state] = refs[state];
+
+        // walk through and disable the events
+        for (rawEvent *event : clearQueue[state])
+            event->disabled = true;
     }
 
     void queueFlush(rawEvent *event) {
-        // first, find the state
+        // find the state and add the event to the flush queue
         for (auto &e : refs) {
             lua_State *state = e.first;
             for (rawEvent *re : e.second) {
                 if (re == event) {
-                    // we found it so add it to the clearQueue
-                    auto iter = clearQueue.find(state);
-
-                    // if the state hasn't registered any flushes, make the hashmap index and vector
-                    if (iter == clearQueue.end())
-                        (clearQueue[state] = std::vector<rawEvent*>()).push_back(event);
-                    else // else just push it to the already existing vector
-                        (*iter).second.push_back(event);
-
+                    addFlush(state, event);
                     return;
                 }
             }
@@ -162,6 +174,7 @@ public:
     rawEvent* addCallback(lua_State *state, lRegistry ref) {
         rawEvent *newEvent = new rawEvent();
         newEvent->type = EVENT_CALLBACK;
+        newEvent->disabled = false;
         newEvent->callback = ref;
         registerEvent(state, newEvent);
 
@@ -172,6 +185,7 @@ public:
     rawEvent* addWait(lua_State *state) {
         rawEvent *newEvent = new rawEvent();
         newEvent->type = EVENT_WAIT;
+        newEvent->disabled = false;
         registerEvent(state, newEvent);
 
         return newEvent;
@@ -218,13 +232,14 @@ public:
     }
 
     template<class... Args> inline void call(Args... args) {
-        // flush all of the events we don't need out of refs
-        flushClear();
-
-        for (auto rIter = refs.begin(); rIter != refs.end();) {
+        auto refsClone = refs; // so if a callback is added, we don't iterate into undefined behavior
+        for (auto rIter = refsClone.begin(); rIter != refsClone.end();) {
             auto &e = *(rIter++);
-            for (auto iter = e.second.begin(); iter != e.second.end();) {
-                rawEvent *ref = (*iter);
+            for (rawEvent *ref : e.second) {
+                // if the event is disabled, skip it
+                if (ref->disabled)
+                    continue;
+
                 switch (ref->type) {
                     case EVENT_CALLBACK: {
                         // make thread for this callback
@@ -236,15 +251,11 @@ public:
 
                         // then call it :)
                         yieldCall(nThread, nargs);
-
-                        // increment the iterator
-                        ++iter;
                         break;
                     }
                     case EVENT_WAIT: {
                         // remove this event from the queue
-                        freeEvent(e.first, ref);
-                        e.second.erase(iter);
+                        addFlush(e.first, ref);
 
                         // the :wait() will return the passed arguments
                         int nargs = lua_autoPush(e.first, 0, args...);
@@ -253,7 +264,6 @@ public:
                     }
                     default:
                         std::cout << "[WARN] INVALID EVENT TYPE : " << ref->type << std::endl;
-                        ++iter;
                         break;
                 }
             }
