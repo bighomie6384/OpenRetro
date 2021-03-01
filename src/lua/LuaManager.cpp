@@ -7,7 +7,7 @@
 
 #include "../settings.hpp"
 
-#include <experimental/filesystem>
+#include <filesystem>
 #include <vector>
 
 time_t getTime();
@@ -108,8 +108,8 @@ void LuaManager::init() {
     REGISTER_SHARD_TIMER(luaScheduler, 200);
 
     // for each file in the scripts director, load the script
-    std::experimental::filesystem::path dir(settings::SCRIPTSDIR);
-    for (auto &d : std::experimental::filesystem::directory_iterator(dir)) {
+    std::filesystem::path dir(settings::SCRIPTSDIR);
+    for (auto &d : std::filesystem::directory_iterator(dir)) {
         if (d.path().extension().u8string() == ".lua")
             runScript(d.path().u8string());
     }
