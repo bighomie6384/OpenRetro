@@ -18,14 +18,14 @@ typedef CNSocket* PlrData;
 static std::map<CNSocket*, PlayerEvents> eventMap;
 
 // check at stack index if it's a player object, and if so return the CNSocket pointer
-static CNSocket* grabSock(lua_State *state, int index) {
+static CNSocket* grabSock(lua_State *state, int indx) {
     // first, make sure its a userdata
-    luaL_checktype(state, index, LUA_TUSERDATA);
+    luaL_checktype(state, indx, LUA_TUSERDATA);
 
     // now, check and make sure its our libraries metatable attached to this userdata
-    PlrData *sock = (PlrData*)luaL_checkudata(state, index, LIBNAME);
+    PlrData *sock = (PlrData*)luaL_checkudata(state, indx, LIBNAME);
     if (sock == NULL) {
-        luaL_typerror(state, index, LIBNAME);
+        luaL_typerror(state, indx, LIBNAME);
         return NULL;
     }
 
@@ -34,8 +34,8 @@ static CNSocket* grabSock(lua_State *state, int index) {
 }
 
 // check at stack index if it's a player object, and if so return the Player pointer
-static Player* grabPlayer(lua_State *state, int index) {
-    CNSocket *sock = grabSock(state, index);
+static Player* grabPlayer(lua_State *state, int indx) {
+    CNSocket *sock = grabSock(state, indx);
 
     if (sock == NULL) {
         luaL_argerror(state, 1, PLRGONESTR);
@@ -46,8 +46,8 @@ static Player* grabPlayer(lua_State *state, int index) {
 }
 
 // check at stack index if it's a player object, and if so return the PlayerEvents pointer
-static PlayerEvents* grabEvents(lua_State *state, int index) {
-    CNSocket *sock = grabSock(state, index);
+static PlayerEvents* grabEvents(lua_State *state, int indx) {
+    CNSocket *sock = grabSock(state, indx);
 
     if (sock == NULL) {
         luaL_argerror(state, 1, PLRGONESTR);

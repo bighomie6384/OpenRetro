@@ -1,4 +1,4 @@
-world.onPlayerAdded:listen(function(player)
+function makeCallback(player)
     print("HELLO " .. player.name .. " FROM LUA!")
 
     -- so we can hold an upvalue of it :)
@@ -53,6 +53,12 @@ world.onPlayerAdded:listen(function(player)
     end
 
     listener = player.onChat:listen(callback)
-end)
+end
+
+world.onPlayerAdded:listen(makeCallback)
+
+for i, plr in pairs(world.players) do
+    makeCallback(plr)
+end
 
 print("Hello world!")

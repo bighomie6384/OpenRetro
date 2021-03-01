@@ -17,6 +17,7 @@ namespace LuaManager {
     // runs the script in the passed file
     void runScript(std::string filename);
     void stopScripts();
+    void loadScripts();
 
     // unregisters the events tied to this state with all wrappers
     void clearState(lua_State *state);

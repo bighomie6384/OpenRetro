@@ -107,12 +107,8 @@ void LuaManager::init() {
 
     REGISTER_SHARD_TIMER(luaScheduler, 200);
 
-    // for each file in the scripts director, load the script
-    std::filesystem::path dir(settings::SCRIPTSDIR);
-    for (auto &d : std::filesystem::directory_iterator(dir)) {
-        if (d.path().extension().u8string() == ".lua")
-            runScript(d.path().u8string());
-    }
+    // load our scripts
+    loadScripts();
 }
 
 void LuaManager::runScript(std::string filename) {
@@ -128,8 +124,22 @@ void LuaManager::stopScripts() {
         delete as.second;
     }
 
+    // clear all events
+    for (lEvent *event : activeEvents) {
+        event->clear();
+    }
+
     // finally clear the map
     activeScripts.clear();
+}
+
+void LuaManager::loadScripts() {
+    // for each file in the scripts director, load the script
+    std::filesystem::path dir(settings::SCRIPTSDIR);
+    for (auto &d : std::filesystem::directory_iterator(dir)) {
+        if (d.path().extension().u8string() == ".lua")
+            runScript(d.path().u8string());
+    }
 }
 
 void LuaManager::clearState(lua_State *state) {

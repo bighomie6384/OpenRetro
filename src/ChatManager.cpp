@@ -846,6 +846,14 @@ void unregisterallCommand(std::string full, std::vector<std::string>& args, CNSo
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
 }
 
+void reloadCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    // disconnects all events, free's the scheduler queue and stops all scripts
+    LuaManager::stopScripts();
+
+    // runs every script in the scripts directory
+    LuaManager::loadScripts();
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -853,6 +861,7 @@ void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_ANNOUNCE, announcementHandler);
 
     registerCommand("help", 100, helpCommand, "list all unlocked server-side commands");
+    registerCommand("reload", 30, reloadCommand, "stops all scripts and reloads the script directory");
     registerCommand("access", 100, accessCommand, "print your access level");
     registerCommand("instance", 30, instanceCommand, "print or change your current instance");
     registerCommand("mss", 30, mssCommand, "edit Monkey Skyway routes");

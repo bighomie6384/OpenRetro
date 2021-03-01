@@ -5,8 +5,8 @@ CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
 # If compiling with ASAN, invoke like this: $ LSAN_OPTIONS=suppressions=suppr.txt bin/fusion
 CFLAGS=-O3 #-g3 -fsanitize=address
-CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -g -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I/usr/include/luajit-2.1 #-g3 -fsanitize=address
-LDFLAGS=-lpthread -lsqlite3 -lluajit-5.1 -fsanitize=address -lstdc++fs
+CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I/usr/include/luajit-2.1 #-g3 -fsanitize=address
+LDFLAGS=-lpthread -lsqlite3 -lluajit-5.1 -lstdc++fs
 # specifies the name of our exectuable
 SERVER=bin/fusion
 
