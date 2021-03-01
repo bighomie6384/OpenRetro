@@ -159,3 +159,7 @@ void LuaManager::playerRemoved(CNSocket *sock) {
 void LuaManager::playerChatted(CNSocket *sock, std::string& msg) {
     Player::playerChatted(sock, msg);
 }
+
+void LuaManager::npcRemoved(int32_t id) {
+    NPC::removeNPC(id);
+}

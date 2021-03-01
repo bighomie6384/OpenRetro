@@ -7,6 +7,9 @@ namespace LuaManager {
     namespace NPC {
         void init(lua_State *state);
 
-        void push(BaseNPC *npc);
+        void push(lua_State *state, int32_t npc);
+
+        // events (to be called by LuaManager)
+        void removeNPC(int32_t id);
     }
 }

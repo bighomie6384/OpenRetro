@@ -9,6 +9,7 @@
 #include "ChatManager.hpp"
 #include "GroupManager.hpp"
 #include "RacingManager.hpp"
+#include "lua/LuaManager.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -89,6 +90,8 @@ void NPCManager::destroyNPC(int32_t id) {
     delete entity->viewableChunks;
     NPCs.erase(id);
     delete entity;
+
+    LuaManager::npcRemoved(id);
 }
 
 void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, int angle) {

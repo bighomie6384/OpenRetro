@@ -218,6 +218,13 @@ static int plr_getGM(lua_State *state) {
     return 1;
 }
 
+static int plr_getInst(lua_State *state) {
+    Player *plr = grabPlayer(state, 1);
+
+    lua_pushnumber(state, plr->instanceID);
+    return 1;
+}
+
 // =============================================== [[ SETTERS ]] ===============================================
 
 static int plr_setGM(lua_State *state) {
@@ -283,13 +290,14 @@ static const luaL_Reg getters[] = {
     {"y", plr_getY},
     {"z", plr_getZ},
     {"GM", plr_getGM}, // grabs account level
+    {"instance", plr_getInst},
     {"onChat", plr_getOnChat},
     {"onDisconnect", plr_getOnDisconnect},
     {0, 0}
 };
 
 static const luaL_Reg setters[] = {
-    {"GM", plr_setGM}, // grabs account level
+    {"GM", plr_setGM}, // sets account level
     {0, 0}
 };
 

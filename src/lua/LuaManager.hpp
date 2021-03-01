@@ -25,4 +25,6 @@ namespace LuaManager {
     void playerAdded(CNSocket *sock);
     void playerRemoved(CNSocket *sock);
     void playerChatted(CNSocket *sock, std::string& msg);
+
+    void npcRemoved(int32_t id);
 }

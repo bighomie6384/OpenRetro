@@ -263,3 +263,16 @@ void LuaManager::NPC::init(lua_State *state) {
     luaL_register(state, NULL, setters);
     lua_rawset(state, LUA_REGISTRYINDEX);
 }
+
+void LuaManager::NPC::push(lua_State *state, int32_t id) {
+    pushNPC(state, id);
+}
+
+void LuaManager::NPC::removeNPC(int32_t id) {
+    auto iter = puppetMap.find(id);
+
+    // if the puppet exists, remove it from the hashmap
+    if (iter != puppetMap.end()) {
+        puppetMap.erase(iter);
+    }
+}
