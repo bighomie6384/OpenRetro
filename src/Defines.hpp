@@ -29,7 +29,8 @@ enum NPCClass {
     NPC_BASE = 0,
     NPC_MOB = 1,
     NPC_BUS = 2,
-    NPC_EGG = 3
+    NPC_EGG = 3,
+    NPC_PUPPET = 4
 };
 
 // nano powers

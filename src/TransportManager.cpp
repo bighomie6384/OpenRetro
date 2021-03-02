@@ -326,7 +326,7 @@ void TransportManager::stepNPCPathing() {
          * Move processed point to the back to maintain cycle, unless this is a
          * dynamically calculated mob route.
          */
-        if (!(npc->npcClass == NPC_MOB && !((Mob*)npc)->staticPath))
+        if (!(npc->npcClass == NPC_MOB && !((Mob*)npc)->staticPath) && npc->npcClass != NPC_PUPPET)
             queue->push(point);
 
         it++; // go to next entry in map

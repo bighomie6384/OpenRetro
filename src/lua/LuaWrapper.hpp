@@ -11,6 +11,7 @@
 
 #include "LuaManager.hpp"
 #include "PlayerWrapper.hpp"
+#include "NPCWrapper.hpp"
 
 #define yieldCall(state, nargs) \
     int _retCode = lua_resume(state, nargs); \
@@ -32,6 +33,7 @@ inline static int lua_autoPush(lua_State* state, int nargs) {
         bool : LUA_TBOOLEAN
         lRegistry : grabs the object from the lua registry and pushes it onto the stack
         CNSocket* : creates a player object and pushes it onto the stack
+        int32_t : pushes the NPC object corresponding to that id onto the stack
 */
 template<typename T, class... Rest>
 inline static int lua_autoPush(lua_State* state, int nargs, T arg, Rest... rest) {

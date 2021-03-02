@@ -1,17 +1,17 @@
 #include "NPCWrapper.hpp"
 #include "LuaWrapper.hpp"
+#include "EventWrapper.hpp"
 #include "../NPCManager.hpp"
 #include "../TransportManager.hpp"
 
 #define LIBNAME "NPC"
 
 struct PuppetData {
-    // redundant information
     BaseNPC *npc;
     int speed;
 
     // events
-    lEvent *onDeath;
+    lEvent *onDestroy;
 };
 
 // stores the NPC id
@@ -24,9 +24,10 @@ static std::map<int32_t, PuppetData> puppetMap;
     when used on MobManager controlled NPCs.
 */
 static int32_t spawnPuppet(int x, int y, int z, int type, uint64_t inst) {
-    // grab the next id and make allocate NPC
+    // grab the next id and allocate the NPC
     int id = NPCManager::nextId++;
     BaseNPC *npc = new BaseNPC(x, y, z, 0, inst, type, id);
+    npc->npcClass = NPC_PUPPET;
 
     // intitalize it with the NPCManager
     NPCManager::NPCs[id] = npc;
@@ -38,35 +39,39 @@ static int32_t spawnPuppet(int x, int y, int z, int type, uint64_t inst) {
     return id;
 }
 
-static BaseNPC *grabNPC(lua_State *state, int indx) {
-     // first, make sure its a userdata
+static int32_t grabID(lua_State *state, int indx) {
+    // first, make sure its a userdata
     luaL_checktype(state, indx, LUA_TUSERDATA);
 
     // now, check and make sure its our libraries metatable attached to this userdata
     NPCData *id = (NPCData*)luaL_checkudata(state, indx, LIBNAME);
     if (id == NULL) {
         luaL_typerror(state, indx, LIBNAME);
-        return NULL;
+        return -1;
     }
 
+    return *id;
+}
+
+static BaseNPC *grabNPC(lua_State *state, int indx) {
+    int32_t id = grabID(state, indx);
+
+    if (id == -1)
+        return NULL;
+
     // check if the NPC exists still & return NULL if it doesn't
-    auto iter = NPCManager::NPCs.find(*id);
+    auto iter = NPCManager::NPCs.find(id);
     return iter != NPCManager::NPCs.end() ? (*iter).second : NULL;
 }
 
 static PuppetData *grabPuppet(lua_State *state, int indx) {
-     // first, make sure its a userdata
-    luaL_checktype(state, indx, LUA_TUSERDATA);
+    int32_t id = grabID(state, indx);
 
-    // now, check and make sure its our libraries metatable attached to this userdata
-    NPCData *id = (NPCData*)luaL_checkudata(state, indx, LIBNAME);
-    if (id == NULL) {
-        luaL_typerror(state, indx, LIBNAME);
+    if (id == -1)
         return NULL;
-    }
 
     // check if the NPC exists still & return NULL if it doesn't
-    auto iter = puppetMap.find(*id);
+    auto iter = puppetMap.find(id);
     return iter != puppetMap.end() ? &(*iter).second : NULL;
 }
 
@@ -175,10 +180,21 @@ static int npc_moveto(lua_State *state) {
     return 0;
 }
 
+static int npc_destroy(lua_State *state) {
+    int32_t id = grabID(state, 1);
+
+    if (id == -1)
+        return 0;
+
+    NPCManager::destroyNPC(id);
+    return 0;
+}
+
 static const luaL_Reg methods[] = {
     {"new", npc_new},
     {"exists", npc_exists},
     {"moveTo", npc_moveto},
+    {"destroy", npc_destroy},
     {0, 0}
 };
 
@@ -217,17 +233,50 @@ static int npc_getZ(lua_State *state) {
     return 1;
 }
 
+static int npc_getSpeed(lua_State *state) {
+    PuppetData *puppet = grabPuppet(state, 1);
+
+    if (puppet == NULL)
+        return 0;
+
+    lua_pushnumber(state, puppet->speed);
+    return 1;
+}
+
+static int npc_getOnDestroy(lua_State *state) {
+    PuppetData *puppet = grabPuppet(state, 1);
+
+    if (puppet == NULL)
+        return 0;
+
+    LuaManager::Event::push(state, puppet->onDestroy);
+    return 1;
+}
+
 static const luaL_Reg getters[] = {
     {"x", npc_getX},
     {"y", npc_getY},
     {"z", npc_getZ},
+    {"speed", npc_getSpeed},
+    {"onDestroy", npc_getOnDestroy},
     {0, 0}
 };
 
 // =============================================== [[ SETTERS ]] ===============================================
 
+static int npc_setSpeed(lua_State *state) {
+    PuppetData *puppet = grabPuppet(state, 1);
+    int newSpeed = luaL_checkint(state, 2);
+
+    if (puppet == NULL)
+        return 0;
+
+    puppet->speed = newSpeed;
+    return 0;
+}
 
 static const luaL_Reg setters[] = {
+    {"speed", npc_setSpeed},
     {0, 0}
 };
 
@@ -273,6 +322,7 @@ void LuaManager::NPC::removeNPC(int32_t id) {
 
     // if the puppet exists, remove it from the hashmap
     if (iter != puppetMap.end()) {
+        (*iter).second.onDestroy->call();
         puppetMap.erase(iter);
     }
 }
