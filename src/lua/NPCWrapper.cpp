@@ -322,7 +322,8 @@ void LuaManager::NPC::removeNPC(int32_t id) {
 
     // if the puppet exists, remove it from the hashmap
     if (iter != puppetMap.end()) {
-        (*iter).second.onDestroy->call();
+        (*iter).second.onDestroy->call((*iter).second.npc);
+        delete (*iter).second.onDestroy;
         puppetMap.erase(iter);
     }
 }

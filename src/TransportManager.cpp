@@ -340,7 +340,7 @@ void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start,
     int dXY = hypot(end.x - start.x, end.y - start.y); // XY plane distance
     int distanceBetween = hypot(dXY, end.z - start.z); // total distance
     int lerps = distanceBetween / gapSize; // number of intermediate points to add
-    for (int i = 1; i <= lerps; i++) {
+    for (int i = 1; i <= lerps + 1; i++) {
         WarpLocation lerp;
         // lerp math
         //float frac = i / (lerps + 1);

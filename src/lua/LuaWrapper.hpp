@@ -33,7 +33,7 @@ inline static int lua_autoPush(lua_State* state, int nargs) {
         bool : LUA_TBOOLEAN
         lRegistry : grabs the object from the lua registry and pushes it onto the stack
         CNSocket* : creates a player object and pushes it onto the stack
-        int32_t : pushes the NPC object corresponding to that id onto the stack
+        BaseNPC* : creates a NPC object and pushes it onto the stack
 */
 template<typename T, class... Rest>
 inline static int lua_autoPush(lua_State* state, int nargs, T arg, Rest... rest) {
@@ -48,6 +48,9 @@ inline static int lua_autoPush(lua_State* state, int nargs, T arg, Rest... rest)
     } else if constexpr(std::is_same<T, CNSocket*>::value) {
         // create a new player object and push it onto the stack
         LuaManager::Player::push(state, arg);
+    } else if constexpr(std::is_same<T, BaseNPC*>::value) {
+        // create a new npc object and push it onto the stack
+        LuaManager::NPC::push(state, arg->appearanceData.iNPC_ID);
     } else if constexpr(std::is_same<T, bool>::value) {
         lua_pushboolean(state, arg);
     }

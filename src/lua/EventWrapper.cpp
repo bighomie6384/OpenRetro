@@ -135,7 +135,9 @@ static int lstnr_reconnect(lua_State *state) {
 static int lstnr_gc(lua_State *state) {
     lstnrData *lstnr = grabListener(state, 1);
 
-    std::cout << "clearing event listener!" << std::endl;
+    // sanity check
+    if (lstnr == NULL)
+        return 0;
 
     // if the listener is disabled, clear it
     if (lstnr->event->isDisabled(lstnr->rawListener))
