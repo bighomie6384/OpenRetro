@@ -14,7 +14,7 @@ time_t getTime();
 class Script;
 
 // our "main" state, holds our environment
-lua_State *global;
+lua_State *LuaManager::global;
 std::map<lua_State*, Script*> activeScripts;
 
 /*
@@ -28,8 +28,8 @@ private:
 public: 
     Script(std::string source) {
         // make the thread & register it in the registry
-        thread = lua_newthread(global);
-        threadRef = luaL_ref(global, LUA_REGISTRYINDEX);
+        thread = lua_newthread(LuaManager::global);
+        threadRef = luaL_ref(LuaManager::global, LUA_REGISTRYINDEX);
 
         // add this script to the map
         activeScripts[thread] = this;
@@ -46,7 +46,7 @@ public:
         LuaManager::clearState(thread);
 
         // remove it from the global registry
-        luaL_unref(global, LUA_REGISTRYINDEX, threadRef);
+        luaL_unref(LuaManager::global, LUA_REGISTRYINDEX, threadRef);
     }
 
     // c++ moment....
@@ -55,25 +55,37 @@ public:
     }
 };
 
-std::map<lua_State*, time_t> scheduleQueue;
+struct scheduledThread {
+    lRegistry ref; // ref that should be unref'd before resuming
+    time_t time;
+};
+std::map<lua_State*, scheduledThread> scheduleQueue;
 
 // pauses the script for x seconds
 int OF_wait(lua_State *state) {
     double seconds = luaL_checknumber(state, 1);
 
+    // register the thread in the global registry so we don't get GC'd
+    lua_pushthread(state);
+    lRegistry ref = luaL_ref(state, LUA_REGISTRYINDEX); // threads decentant of a global state all share the global registry
+
     // yield the state and push the state onto our scheduler queue
-    scheduleQueue[state] = (int)(seconds*1000) + getTime();
+    scheduleQueue[state] = {ref, (int)(seconds*1000) + getTime()};
     return lua_yield(state, 0);
 }
 
 void luaScheduler(CNServer *serv, time_t currtime) {
     for (auto iter = scheduleQueue.begin(); iter != scheduleQueue.end();) {
-        time_t event = (*iter).second;
+        time_t event = (*iter).second.time;
+        lRegistry ref = (*iter).second.ref;
         lua_State *thread = (*iter).first;
         // is it time to run the event?
         if (event <= currtime) {
             // remove from the scheduler queue
             scheduleQueue.erase(iter++);
+
+            // unregister the thread
+            luaL_unref(thread, LUA_REGISTRYINDEX, ref);
             
             // resume the state, (wait() returns the delta time since call)
             lua_pushnumber(thread, ((double)currtime - event)/10);

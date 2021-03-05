@@ -12,6 +12,7 @@
 typedef int lRegistry;
 
 namespace LuaManager {
+    extern lua_State *global;
     void init();
 
     // runs the script in the passed file

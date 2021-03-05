@@ -72,25 +72,25 @@ class lEvent {
 private:
     struct rawEvent {
         lua_State *state;
-        lRegistry callback; // unused for EVENT_WAIT
-        bool disabled;
         eventType type;
+        lRegistry ref;
+        bool disabled;
     };
 
     uint32_t nextId; // next ID
     std::map<uint32_t, rawEvent> events;
 
-    uint32_t registerEvent(lua_State *state, lRegistry callback, eventType type) {
+    uint32_t registerEvent(lua_State *state, lRegistry ref, eventType type) {
         uint32_t id = nextId++;
 
         assert(nextId < UINT32_MAX);
-        events[id] = {state, callback, false, type};
+        events[id] = {state, type, ref, false};
         return id;
     }
 
     void freeEvent(rawEvent *event) {
-        if (event->type == EVENT_CALLBACK)
-            luaL_unref(event->state, LUA_REGISTRYINDEX, event->callback);
+        // the registry of all states is the same!
+        luaL_unref(event->state, LUA_REGISTRYINDEX, event->ref);
     }
 
 public:
@@ -112,7 +112,10 @@ public:
 
     // yields the thread until the event is called
     uint32_t addWait(lua_State *state) {
-        return registerEvent(state, 0, EVENT_WAIT);
+        // push the thread onto the stack and register it in the global registry
+        lua_pushthread(state);
+        lRegistry ref = luaL_ref(state, LUA_REGISTRYINDEX);
+        return registerEvent(state, ref, EVENT_WAIT);
     }
 
     // walks through the events and unregister them from the state
@@ -196,15 +199,19 @@ public:
                     lua_State *nThread = lua_newthread(event->state);
 
                     // push the callable first, the push all the arguments
-                    lua_rawgeti(nThread, LUA_REGISTRYINDEX, (int)event->callback);
+                    lua_rawgeti(nThread, LUA_REGISTRYINDEX, (int)event->ref);
                     int nargs = lua_autoPush(nThread, 0, args...);
 
                     // then call it :)
                     yieldCall(nThread, nargs);
+
+                    // we can safely pop the thread off the stack now
+                    lua_pop(event->state, 1);
                     break;
                 }
                 case EVENT_WAIT: {
                     // erase this event
+                    freeEvent(&pair.second);
                     events.erase(pair.first);
 
                     // the :wait() will return the passed arguments
