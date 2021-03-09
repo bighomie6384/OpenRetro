@@ -109,6 +109,30 @@ static int plr_moveTo(lua_State *state) {
     return 0;
 }
 
+static int plr_kick(lua_State *state) {
+    Player *plr;
+    CNSocket *sock = grabSock(state, 1);
+
+    if (sock == NULL) {
+        luaL_argerror(state, 1, PLRGONESTR);
+        return 0;
+    }
+
+    // grab our player
+    plr = PlayerManager::players[sock];
+
+    INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, response);
+
+    response.iID = plr->iID;
+    response.iExitCode = 3; // "a GM has terminated your connection"
+
+    // send to target player
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
+
+    sock->kill();
+    return 0;
+}
+
 static int plr_setSpeed(lua_State *state) {
     Player *plr;
     CNSocket *sock = grabSock(state, 1);
@@ -303,6 +327,7 @@ static const luaL_Reg setters[] = {
 
 static const luaL_Reg methods[] = {
     {"moveTo", plr_moveTo},
+    {"kick", plr_kick},
     {"sendMessage", plr_msg},
     {"setSpeed", plr_setSpeed},
     {"setJump", plr_setJump},

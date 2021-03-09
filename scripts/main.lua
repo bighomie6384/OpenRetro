@@ -27,6 +27,9 @@ function makeCallback(player)
             player:sendMessage("waiting 2 seconds and replying!")
             wait(2)
             player:sendMessage("hello from the future!")
+        elseif msg == "exit" then
+            player:sendMessage("cya!")
+            player:kick()
         elseif msg == "lost" then
             for i, plr in pairs(world.getNearbyPlayers(player.x, player.y, player.z, 1000)) do
                 player:sendMessage(plr.name .. " is near!")
