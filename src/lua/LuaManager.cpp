@@ -146,6 +146,11 @@ void LuaManager::stopScripts() {
 }
 
 void LuaManager::loadScripts() {
+    if (!std::filesystem::exists(settings::SCRIPTSDIR)) {
+        std::cout << "[WARN] scripts directory \"" << settings::SCRIPTSDIR << "\" doesn't exist!" << std::endl;
+        return;
+    }
+
     // for each file in the scripts director, load the script
     std::filesystem::path dir(settings::SCRIPTSDIR);
     for (auto &d : std::filesystem::directory_iterator(dir)) {

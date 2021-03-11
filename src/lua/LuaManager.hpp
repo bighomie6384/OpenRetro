@@ -6,7 +6,7 @@
 #ifdef _WIN32
     #include <luajit/lua.hpp>
 #else
-    #include <lua.hpp>
+    #include <luajit-2.1/lua.hpp>
 #endif
 
 typedef int lRegistry;
