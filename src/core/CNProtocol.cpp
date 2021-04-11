@@ -38,6 +38,23 @@ int CNSocketEncryption::xorData(uint8_t* buffer, uint8_t* key, int size) {
     return size;
 }
 
+uint32_t CNSocketEncryption::validateSum(uint8_t* buffer, uint32_t type, int size) {
+    int num = 0;
+    int num2 = 0;
+    int num3 = iV >> 20; // 255
+
+    for (int i = 0;/*iV & 0xF*/ i < size; i++) {
+        num += buffer[i];
+        num -= num3 * (num / num3);
+        num2 += num;
+        num2 -= num3 * (num2 / num3);
+    }
+
+    int dataSum = ((num2 << ((iV >> 12) & 0xF)) | num) & (iV >> 16);
+    // std::cout << "Calculated sum: " << dataSum << std::endl;
+    return type | (dataSum << 12);
+}
+
 uint64_t CNSocketEncryption::createNewKey(uint64_t uTime, int32_t iv1, int32_t iv2) {
     uint64_t num = (uint64_t)(iv1 + 1);
     uint64_t num2 = (uint64_t)(iv2 + 1);
@@ -121,6 +138,9 @@ void CNSocket::kill() {
 void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
+    //std::cout << "\n\nSending packet: " << type << std::endl;
+    type = CNSocketEncryption::validateSum((uint8_t*)buf, type, (int) size);
+    // std::cout << "Updated header: " << type << std::endl;
 
     uint8_t fullpkt[CN_PACKET_BUFFER_SIZE]; // length, type, body
     uint8_t* body = fullpkt + 4; // packet without length (type, body)
@@ -132,6 +152,12 @@ void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     // copy packet type to the front of the buffer & then the actual buffer
     memcpy(body, (void*)&type, 4);
     memcpy(body+4, buf, size);
+
+    // std::cout << "Final unencrypted packet contents: " << std::endl;
+    // for (int i = 0; i < bodysize; i++) {
+    //     printf("%02x ", body[i]);
+    // }
+    // std::cout << std::endl;
 
     // encrypt the packet
     switch (activeKey) {
@@ -206,8 +232,15 @@ void CNSocket::step() {
         // decrypt readBuffer and copy to CNPacketData
         CNSocketEncryption::decryptData((uint8_t*)&readBuffer, (uint8_t*)(&EKey), readSize);
 
+
+        // std::cout << "\n\nReceiving packet! Contents: " << std::endl;
+        // for (int i = 0; i < readSize; i++) {
+        //     printf("%02x ", readBuffer[i]);
+        // }
+        // std::cout << std::endl;
         void* tmpBuf = readBuffer+sizeof(uint32_t);
-        CNPacketData tmp(tmpBuf, *((uint32_t*)readBuffer), readSize-sizeof(int32_t));
+        CNPacketData tmp(tmpBuf, *((uint32_t*)readBuffer) & 0xFF000FFF, readSize-sizeof(int32_t));
+        // std::cout << "Packet type: " << (*((uint32_t*)readBuffer) & 0xFF000FFF) << std::endl;
 
         // call packet handler!!
         pHandler(this, &tmp);

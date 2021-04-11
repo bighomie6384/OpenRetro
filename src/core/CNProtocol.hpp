@@ -123,11 +123,13 @@ bool setSockNonblocking(SOCKET listener, SOCKET newSock);
 
 namespace CNSocketEncryption {
     // you won't believe how complicated they made it in the client :facepalm:
-    static constexpr const char* defaultKey = "m@rQn~W#";
+    static constexpr const char* defaultKey = "a>$rT~!Q";
     static const unsigned int keyLength = 8;
+    static const unsigned int iV = 268403508;
 
     int Encrypt_byte_change_A(int ERSize, uint8_t* data, int size);
     int xorData(uint8_t* buffer, uint8_t* key, int size);
+    uint32_t validateSum(uint8_t* buffer, uint32_t type, int size);
     uint64_t createNewKey(uint64_t uTime, int32_t iv1, int32_t iv2);
     int encryptData(uint8_t* buffer, uint8_t* key, int size);
     int decryptData(uint8_t* buffer, uint8_t* key, int size);
