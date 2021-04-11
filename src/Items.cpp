@@ -202,10 +202,9 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         fromItem = &plr->Inven[itemmove->iFromSlotNum];
         break;
     case SlotType::BANK:
-        if (itemmove->iFromSlotNum >= ABANK_COUNT)
+        if (itemmove->iFromSlotNum >= 200)
             return;
-
-        fromItem = &plr->Bank[itemmove->iFromSlotNum];
+        fromItem = &plr->Bank[(plr->activeBank * 200) + itemmove->iFromSlotNum];
         break;
     default:
         std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eFrom << std::endl;
@@ -228,10 +227,9 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         toItem = &plr->Inven[itemmove->iToSlotNum];
         break;
     case SlotType::BANK:
-        if (itemmove->iToSlotNum >= ABANK_COUNT)
+        if (itemmove->iToSlotNum >= 200)
             return;
-
-        toItem = &plr->Bank[itemmove->iToSlotNum];
+        toItem = &plr->Bank[(plr->activeBank * 200) + itemmove->iToSlotNum];
         break;
     default:
         std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eTo << std::endl;
@@ -352,73 +350,125 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     sNano nano = player->Nanos[player->equippedNanos[request->iNanoSlot]];
 
     // sanity check, check if gumball exists
-    if (!(gumball.iOpt > 0 && gumball.iType == 7 && gumball.iID>=119 && gumball.iID<=121)) {
+    if (!(gumball.iOpt > 0 && gumball.iType == 7 && ((gumball.iID>=119 && gumball.iID<=121) || gumball.iID == 5 || gumball.iID == 29 || gumball.iID == 30 || gumball.iID == 32))) {
         std::cout << "[WARN] Gumball not found" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_USE_FAIL));
         return;
     }
 
-    // sanity check, check if gumball type matches nano style
-    int nanoStyle = Nanos::nanoStyle(nano.iID);
-    if (!((gumball.iID == 119 && nanoStyle == 0) ||
-        (  gumball.iID == 120 && nanoStyle == 1) ||
-        (  gumball.iID == 121 && nanoStyle == 2))) {
-        std::cout << "[WARN] Gumball type doesn't match nano type" << std::endl;
-        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
-        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_USE_FAIL));
-        return;
+    if (gumball.iID>=119 && gumball.iID<=121) {
+        // sanity check, check if gumball type matches nano style
+        int nanoStyle = Nanos::nanoStyle(nano.iID);
+        if (!((gumball.iID == 119 && nanoStyle == 0) ||
+            (  gumball.iID == 120 && nanoStyle == 1) ||
+            (  gumball.iID == 121 && nanoStyle == 2))) {
+            std::cout << "[WARN] Gumball type doesn't match nano type" << std::endl;
+            INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
+            sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_USE_FAIL));
+            return;
+        }
+
+        gumball.iOpt -= 1;
+        if (gumball.iOpt == 0)
+            gumball = {};
+
+        size_t resplen = sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC) + sizeof(sSkillResult_Buff);
+
+        // validate response packet
+        if (!validOutVarPacket(sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC), 1, sizeof(sSkillResult_Buff))) {
+            std::cout << "[WARN] bad sP_FE2CL_REP_PC_ITEM_USE_SUCC packet size" << std::endl;
+            return;
+        }
+
+        if (gumball.iOpt == 0)
+            gumball = {};
+
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+        memset(respbuf, 0, resplen);
+
+        sP_FE2CL_REP_PC_ITEM_USE_SUCC *resp = (sP_FE2CL_REP_PC_ITEM_USE_SUCC*)respbuf;
+        sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
+        resp->iPC_ID = player->iID;
+        resp->eIL = 1;
+        resp->iSlotNum = request->iSlotNum;
+        resp->RemainItem = gumball;
+        resp->iTargetCnt = 1;
+        resp->eST = EST_NANOSTIMPAK;
+        resp->iSkillID = 144;
+
+        int value1 = CSB_BIT_STIMPAKSLOT1 << request->iNanoSlot;
+        int value2 = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
+
+        respdata->eCT = 1;
+        respdata->iID = player->iID;
+        respdata->iConditionBitFlag = value1;
+
+        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
+        pkt.eCSTB = value2; // eCharStatusTimeBuffID
+        pkt.eTBU = 1; // eTimeBuffUpdate
+        pkt.eTBT = 1; // eTimeBuffType 1 means nano
+        pkt.iConditionBitFlag = player->iConditionBitFlag |= value1;
+        sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+
+        sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
+        // update inventory serverside
+        player->Inven[resp->iSlotNum] = resp->RemainItem;
+
+        std::pair<CNSocket*, int32_t> key = std::make_pair(sock, value1);
+        time_t until = getTime() + (time_t)Nanos::SkillTable[144].durationTime[0] * 100;
+        Eggs::EggBuffs[key] = until;
+    } else {
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_SUCC, resp);
+        resp.iPC_ID = player->iID;
+        resp.eIL = 1;
+        resp.iSlotNum = request->iSlotNum;
+        resp.iTargetCnt = 1;
+        std::cout << gumball.iID << std::endl;
+        switch (gumball.iID) {
+            case 5: // Gold card
+                if ((player->BankOwnership & 8) == 0) {
+                    player->BankOwnership |= 8;
+                    resp.eST = 1000;
+                } else {
+                    resp.eST = 1002;
+                }
+                break;
+            case 32: // Sapphire card
+                if ((player->BankOwnership & 4) == 0) {
+                    player->BankOwnership |= 4;
+                    resp.eST = 1000;
+                } else {
+                    resp.eST = 1002;
+                }
+                break;
+            case 29: // Emerald card
+                if ((player->BankOwnership & 2) == 0) {
+                    player->BankOwnership |= 2;
+                    resp.eST = 1000;
+                } else {
+                    resp.eST = 1002;
+                }
+                break;
+            case 30: // Ruby card
+                if ((player->BankOwnership & 1) == 0) {
+                    player->BankOwnership |= 1;
+                    resp.eST = 1000;
+                } else {
+                    resp.eST = 1002;
+                }
+                break;
+            default:
+                resp.eST = 1001;
+        }
+        resp.iSkillID = 144;
+        gumball.iOpt -= 1;
+        if (gumball.iOpt == 0)
+            gumball = {};
+        resp.RemainItem = gumball;
+        player->Inven[resp.iSlotNum] = resp.RemainItem;
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_USE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC));
     }
-
-    gumball.iOpt -= 1;
-    if (gumball.iOpt == 0)
-        gumball = {};
-
-    size_t resplen = sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC) + sizeof(sSkillResult_Buff);
-
-    // validate response packet
-    if (!validOutVarPacket(sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC), 1, sizeof(sSkillResult_Buff))) {
-        std::cout << "[WARN] bad sP_FE2CL_REP_PC_ITEM_USE_SUCC packet size" << std::endl;
-        return;
-    }
-
-    if (gumball.iOpt == 0)
-        gumball = {};
-
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
-
-    sP_FE2CL_REP_PC_ITEM_USE_SUCC *resp = (sP_FE2CL_REP_PC_ITEM_USE_SUCC*)respbuf;
-    sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
-    resp->iPC_ID = player->iID;
-    resp->eIL = 1;
-    resp->iSlotNum = request->iSlotNum;
-    resp->RemainItem = gumball;
-    resp->iTargetCnt = 1;
-    resp->eST = EST_NANOSTIMPAK;
-    resp->iSkillID = 144;
-
-    int value1 = CSB_BIT_STIMPAKSLOT1 << request->iNanoSlot;
-    int value2 = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
-
-    respdata->eCT = 1;
-    respdata->iID = player->iID;
-    respdata->iConditionBitFlag = value1;
-
-    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
-    pkt.eCSTB = value2; // eCharStatusTimeBuffID
-    pkt.eTBU = 1; // eTimeBuffUpdate
-    pkt.eTBT = 1; // eTimeBuffType 1 means nano
-    pkt.iConditionBitFlag = player->iConditionBitFlag |= value1;
-    sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
-
-    sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
-    // update inventory serverside
-    player->Inven[resp->iSlotNum] = resp->RemainItem;
-
-    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, value1);
-    time_t until = getTime() + (time_t)Nanos::SkillTable[144].durationTime[0] * 100;
-    Eggs::EggBuffs[key] = until;
 }
 
 static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
@@ -427,10 +477,55 @@ static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    sP_CL2FE_REQ_PC_BANK_OPEN *pkt = (sP_CL2FE_REQ_PC_BANK_OPEN *)data->buf;
+    bool fail = false;
+    switch (NPCManager::NPCs[pkt->iNPC_ID]->appearanceData.iNPCType) {
+        case 2586: // Gold banker
+            if ((plr->BankOwnership & 8) == 0) {
+                fail = true;
+                break;
+            }
+            plr->activeBank = 4;
+            break;
+        case 3129: // Sapphire banker
+            if ((plr->BankOwnership & 4) == 0) {
+                fail = true;
+                break;
+            }
+            plr->activeBank = 3;
+            break;
+        case 2507: // Emerald banker
+            if ((plr->BankOwnership & 2) == 0) {
+                fail = true;
+                break;
+            }
+            plr->activeBank = 2;
+            break;
+        case 3124: // Ruby banker
+            if ((plr->BankOwnership & 1) == 0) {
+                fail = true;
+                break;
+            }
+            plr->activeBank = 1;
+            break;
+        default:
+            plr->activeBank = 0;
+            break;
+    }
+
+    if (fail) {
+        INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_FAIL, resp);
+        resp.iErrorCode = 2;
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_FAIL, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_FAIL));
+        return;
+    }
+
+    std::cout << "Player opening bank " << plr->activeBank << std::endl;
+
     // just send bank inventory
     INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_SUCC, resp);
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        resp.aBank[i] = plr->Bank[i];
+    for (int i = 0; i < 200; i++) {
+        resp.aBank[i] = plr->Bank[(plr->activeBank * 200) + i];
     }
     resp.iExtraBank = 1;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));

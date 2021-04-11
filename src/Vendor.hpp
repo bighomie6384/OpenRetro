@@ -11,6 +11,7 @@ struct VendorListing {
 };
 
 namespace Vendor {
+    extern std::map<int32_t, std::vector<VendorListing>> VendorOverrideTables;
     extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
 
     void init();

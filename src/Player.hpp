@@ -30,6 +30,7 @@ struct Player {
     sNano Nanos[NANO_COUNT]; // acquired nanos
     int equippedNanos[3];
     int activeNano; // active nano (index into Nanos)
+    int activeBank;
     int8_t iPCState;
     int32_t iWarpLocationFlag;
     int64_t aSkywayLocationFlag[2];
@@ -64,6 +65,7 @@ struct Player {
     int RemainingNPCCount[ACTIVE_MISSION_COUNT][3];
     sItemBase QInven[AQINVEN_COUNT];
     int32_t CurrentMissionID;
+    int32_t BankOwnership;
 
     sTimeLimitItemDeleteInfo2CL toRemoveVehicle;
 

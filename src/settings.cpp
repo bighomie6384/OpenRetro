@@ -48,6 +48,7 @@ std::string settings::PATHJSON = "tdata/1013/paths.json";
 std::string settings::DROPSJSON = "tdata/drops.json";
 std::string settings::XDTJSON = "tdata/xdt.json";
 std::string settings::PATHJSON = "tdata/paths.json";
+std::string settings::VENDORJSON = "tdata/vendor.json";
 #endif
 
 int settings::ACCLEVEL = 1;
@@ -89,6 +90,7 @@ void settings::init() {
     SPAWN_ANGLE = reader.GetInteger("shard", "spawnangle", SPAWN_ANGLE);
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
     XDTJSON = reader.Get("shard", "xdtdata", XDTJSON);
+    VENDORJSON = reader.Get("shard", "vendordata", VENDORJSON);
     MOBJSON = reader.Get("shard", "mobdata", MOBJSON);
     ACADEMYJSON = reader.Get("shard", "academydata", ACADEMYJSON);
     DROPSJSON = reader.Get("shard", "dropdata", DROPSJSON);

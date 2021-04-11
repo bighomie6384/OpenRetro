@@ -2,6 +2,7 @@
 
 using namespace Vendor;
 
+std::map<int32_t, std::vector<VendorListing>> Vendor::VendorOverrideTables;
 std::map<int32_t, std::vector<VendorListing>> Vendor::VendorTables;
 
 static void vendorBuy(CNSocket* sock, CNPacketData* data) {
@@ -210,10 +211,15 @@ static void vendorTable(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
 
-    if (req->iVendorID != req->iNPC_ID || Vendor::VendorTables.find(req->iVendorID) == Vendor::VendorTables.end())
+    std::map<int32_t, std::vector<VendorListing>> lookupTable = Vendor::VendorOverrideTables;
+
+    if (lookupTable.find(req->iVendorID) == lookupTable.end())
+        lookupTable = Vendor::VendorTables;
+
+    if (lookupTable.find(req->iVendorID) == lookupTable.end())
         return;
 
-    std::vector<VendorListing> listings = Vendor::VendorTables[req->iVendorID];
+    std::vector<VendorListing> listings = lookupTable[req->iVendorID];
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 

@@ -357,11 +357,82 @@ static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
         plr->instanceID, oldbody->appearanceData.iAngle);
 }
 
+// TODO Stop copy pasting the same shit
+
+static void shipwreckerSplit(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    std::cout << "Shipwrecker splitting" << std::endl;
+
+    int splits = 3;
+
+    for (int i = 0; i < splits; i++) {
+        int offsetX = 1000 * cos(2 * M_PI * i / splits);
+        int offsetY = 1000 * sin(2 * M_PI * i / splits);
+        Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->appearanceData.iX + offsetX, oldbody->appearanceData.iY + offsetY, oldbody->appearanceData.iZ, plr->instanceID, 3184);
+
+        NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+            plr->instanceID, oldbody->appearanceData.iAngle);
+    }
+}
+
+static void megaEchoSplit(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    std::cout << "Mega echo splitting" << std::endl;
+
+    int splits = 2;
+
+    for (int i = 0; i < splits; i++) {
+        int offsetX = 500 * cos(2 * M_PI * i / splits);
+        int offsetY = 500 * sin(2 * M_PI * i / splits);
+        Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->appearanceData.iX + offsetX, oldbody->appearanceData.iY + offsetY, oldbody->appearanceData.iZ, plr->instanceID, 3168);
+
+        NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+            plr->instanceID, oldbody->appearanceData.iAngle);
+    }
+}
+
+static void echoSplit(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    std::cout << "Echo splitting" << std::endl;
+
+    int splits = 4;
+
+    for (int i = 0; i < splits; i++) {
+        int offsetX = 300 * cos(2 * M_PI * i / splits);
+        int offsetY = 300 * sin(2 * M_PI * i / splits);
+        Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->appearanceData.iX + offsetX, oldbody->appearanceData.iY + offsetY, oldbody->appearanceData.iZ, plr->instanceID, 3171);
+
+        NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+            plr->instanceID, oldbody->appearanceData.iAngle);
+    }
+}
+
+static void belladonnaSplit(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    std::cout << "Belladonna splitting" << std::endl;
+
+    // TODO split into belladonna shield and shogun
+}
+
 std::vector<NPCEvent> NPCManager::NPCEvents = {
     NPCEvent(2466, ON_KILLED, lordFuseStageTwo),
     NPCEvent(2467, ON_KILLED, lordFuseStageThree),
+    NPCEvent(3185, ON_KILLED, shipwreckerSplit),
+    NPCEvent(3172, ON_KILLED, megaEchoSplit),
+    NPCEvent(3168, ON_KILLED, echoSplit),
+    NPCEvent(3325, ON_KILLED, belladonnaSplit),
 };
 
+// 3325 -> shield and shogun -> 3337 instance 147
+// Shogun splits into 2 shinobis
 #pragma endregion NPCEvents
 
 void NPCManager::init() {

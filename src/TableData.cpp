@@ -56,7 +56,7 @@ static void constructPathSkyway(nlohmann::json::iterator _pathData) {
     Transport::SkywayPaths[pathData["iRouteID"]] = points;
 }
 
-static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
+static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0, int offsetX=0, int offsetY=0) {
     auto pathData = _pathData.value();
     // Interpolate
     nlohmann::json pathPoints = pathData["points"];
@@ -64,12 +64,16 @@ static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
     nlohmann::json::iterator _point = pathPoints.begin();
     auto point = _point.value();
     WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+    from.x += offsetX;
+    from.y += offsetY;
     int stopTime = point["stop"];
     for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
         point = _point.value();
         for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
             points.push(from); // add point A to the queue
         WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+        to.x += offsetX;
+        to.y += offsetY;
         Transport::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
         from = to; // update point A
         stopTime = point["stop"];
@@ -174,6 +178,13 @@ static void loadPaths(int* nextId) {
 
                     constructPathNPC(npcPath, pair.first);
                     pair.second->staticPath = true;
+                    for (int i = 0; i < 4; i++) {
+                        int groupMember = pair.second->groupMember[i];
+                        if (groupMember != 0) {
+                            constructPathNPC(npcPath, groupMember, MobAI::Mobs[groupMember]->offsetX, MobAI::Mobs[groupMember]->offsetY);
+                            MobAI::Mobs[groupMember]->staticPath = true;
+                        }
+                    }
                     break; // only one NPC per path
                 }
             }
@@ -303,7 +314,6 @@ static void loadDrops() {
 
             if (Items::CodeItems.find(codeStr) == Items::CodeItems.end())
                 Items::CodeItems[codeStr] = std::vector<std::pair<int32_t, int32_t>>();
-
             Items::CodeItems[codeStr].push_back(item);
         }
 
@@ -608,6 +618,20 @@ void TableData::init() {
         for (nlohmann::json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
             auto warp = _warp.value();
             WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"], warp["m_iToMapNum"], warp["m_iIsInstance"], warp["m_iLimit_TaskID"], warp["m_iNpcNumber"] };
+            if (warp["m_iNpcNumber"] == 3339) {
+                warpLoc.x = 630500;
+                warpLoc.y = 809000;
+                warpLoc.z = 4000;
+            } else if (warp["m_iNpcNumber"] == 3345) {
+                warpLoc.x = 126872;
+                warpLoc.y = 698884;
+                warpLoc.z = -4200;
+            } else if (warp["m_iNpcNumber"] == 661) {
+                warpLoc.x = 346416;
+                warpLoc.y = 552433;
+                warpLoc.z = -4586;
+            }
+            
             int warpID = warp["m_iWarpNumber"];
             NPCManager::Warps[warpID] = warpLoc;
         }
@@ -621,6 +645,11 @@ void TableData::init() {
         for (nlohmann::json::iterator _tLoc = transLocData.begin(); _tLoc != transLocData.end(); _tLoc++) {
             auto tLoc = _tLoc.value();
             TransportLocation transLoc = { tLoc["m_iNPCID"], tLoc["m_iXpos"], tLoc["m_iYpos"], tLoc["m_iZpos"] };
+            if (tLoc["m_iNPCID"] == 974) {
+                transLoc.x = 213100;
+                transLoc.y = 107100;
+                transLoc.z = -5695;
+            }
             Transport::Locations[tLoc["m_iLocationID"]] = transLoc;
         }
         std::cout << "[INFO] Loaded " << Transport::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
@@ -651,6 +680,7 @@ void TableData::init() {
             // everything else lol. see TaskData comment.
             Missions::Tasks[task["m_iHTaskID"]] = new TaskData(task);
         }
+        std::cout << "[INFO] Loaded " << Transport::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
 
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
 
@@ -866,6 +896,27 @@ void TableData::init() {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed mobs.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+
+    try {
+        std::ifstream inFile(settings::VENDORJSON);
+        nlohmann::json vendorData;
+
+        inFile >> vendorData;
+
+        nlohmann::json listings = vendorData["m_pItemData"];
+
+        for (nlohmann::json::iterator _lst = listings.begin(); _lst != listings.end(); _lst++) {
+            auto lst = _lst.value();
+            VendorListing vListing = { lst["m_iSortNumber"], lst["m_iItemType"], lst["m_iitemID"] };
+            Vendor::VendorOverrideTables[lst["m_iNpcNumber"]].push_back(vListing);
+        }
+
+        std::cout << "[INFO] Loaded " << Vendor::VendorOverrideTables.size() << " vendor override tables" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed vendor.json file! Reason:" << err.what() << std::endl;
         exit(1);
     }
 

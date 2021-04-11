@@ -23,19 +23,24 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
 
     int level = plr->level;
 
-#ifndef ACADEMY
-    level = nanoID < plr->level ? plr->level : nanoID;
 
-    /*
-     * Spend the necessary Fusion Matter.
-     * Note the use of the not-yet-incremented plr->level as opposed to level.
-     * Doing it the other way always leaves the FM at 0. Jade totally called it.
-     */
-    plr->level = level;
+    if (nanoID <= 36) {
+        #ifndef ACADEMY
+        level = nanoID < plr->level ? plr->level : nanoID;
 
-    if (spendfm)
-        Missions::updateFusionMatter(sock, -(int)Missions::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
-#endif
+        /*
+        * Spend the necessary Fusion Matter.
+        * Note the use of the not-yet-incremented plr->level as opposed to level.
+        * Doing it the other way always leaves the FM at 0. Jade totally called it.
+        */
+        plr->level = level;
+
+        if (spendfm)
+            Missions::updateFusionMatter(sock, -(int)Missions::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
+        #endif
+    } else if (nanoID > 44 || nanoID < 41)
+        return;
+
 
     // Send to client
     INITSTRUCT(sP_FE2CL_REP_PC_NANO_CREATE_SUCC, resp);
