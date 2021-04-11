@@ -3,10 +3,12 @@
 #define AEQUIP_COUNT 9
 #define AINVEN_COUNT 50
 #define AQINVEN_COUNT 50
-#define ABANK_COUNT 119
+#define ABANK_COUNT 1000
 
 // includes zeroeth entry
-#define NANO_COUNT 37
+#define NANO_COUNT 48
+
+#define P_FE2CL_REP_NANO_BOOK_SUBSET 822083892
 
 #pragma pack(push)
 
@@ -926,6 +928,7 @@ struct sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT {
 #pragma pack(4)
 struct sP_CL2FE_REQ_PC_BANK_OPEN {
 	int32_t iPC_ID;
+	int32_t iNPC_ID;
 };
 
 #pragma pack(4)
@@ -2554,7 +2557,7 @@ struct sP_FE2CL_REP_NANO_TUNE_FAIL {
 
 #pragma pack(4)
 struct sP_FE2CL_REP_PC_BANK_OPEN_SUCC {
-	sItemBase aBank[119];
+	sItemBase aBank[200];
 	int32_t iExtraBank;
 };
 
@@ -4124,6 +4127,14 @@ struct sP_FE2CL_REP_PC_ITEM_ENCHANT_FAIL {
 };
 
 #pragma pack(4)
+struct sP_FE2CL_REP_NANO_BOOK_SUBSET {
+	int64_t PCUID;
+	int32_t bookSize;
+	int32_t elementOffset;
+	sNano element[10];
+};
+
+#pragma pack(4)
 struct sP_LS2CL_REP_LOGIN_SUCC {
 	int8_t iCharCount;
 	int8_t iSlotNum;
@@ -4325,7 +4336,7 @@ static_assert(sizeof(sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER) == 28 || sizeof(sP_CL2
 static_assert(sizeof(sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER) == 28 || sizeof(sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER) == 0);
 static_assert(sizeof(sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER) == 16 || sizeof(sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER) == 0);
 static_assert(sizeof(sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT) == 276 || sizeof(sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT) == 0);
-static_assert(sizeof(sP_CL2FE_REQ_PC_BANK_OPEN) == 4 || sizeof(sP_CL2FE_REQ_PC_BANK_OPEN) == 0);
+static_assert(sizeof(sP_CL2FE_REQ_PC_BANK_OPEN) == 8 || sizeof(sP_CL2FE_REQ_PC_BANK_OPEN) == 0);
 static_assert(sizeof(sP_CL2FE_REQ_PC_BANK_CLOSE) == 4 || sizeof(sP_CL2FE_REQ_PC_BANK_CLOSE) == 0);
 static_assert(sizeof(sP_CL2FE_REQ_PC_VENDOR_START) == 8 || sizeof(sP_CL2FE_REQ_PC_VENDOR_START) == 0);
 static_assert(sizeof(sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE) == 8 || sizeof(sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE) == 0);
@@ -4548,7 +4559,7 @@ static_assert(sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT) == 272 || sizeof(sP_FE2C
 static_assert(sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC) == 28 || sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC) == 0);
 static_assert(sizeof(sP_FE2CL_REP_PC_NANO_CREATE_FAIL) == 8 || sizeof(sP_FE2CL_REP_PC_NANO_CREATE_FAIL) == 0);
 static_assert(sizeof(sP_FE2CL_REP_NANO_TUNE_FAIL) == 8 || sizeof(sP_FE2CL_REP_NANO_TUNE_FAIL) == 0);
-static_assert(sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC) == 1432 || sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC) == 0);
+static_assert(sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC) == 2404 || sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC) == 0);
 static_assert(sizeof(sP_FE2CL_REP_PC_BANK_OPEN_FAIL) == 4 || sizeof(sP_FE2CL_REP_PC_BANK_OPEN_FAIL) == 0);
 static_assert(sizeof(sP_FE2CL_REP_PC_BANK_CLOSE_SUCC) == 4 || sizeof(sP_FE2CL_REP_PC_BANK_CLOSE_SUCC) == 0);
 static_assert(sizeof(sP_FE2CL_REP_PC_BANK_CLOSE_FAIL) == 4 || sizeof(sP_FE2CL_REP_PC_BANK_CLOSE_FAIL) == 0);
@@ -4766,6 +4777,7 @@ static_assert(sizeof(sP_FE2CL_REP_PC_DISASSEMBLE_ITEM_FAIL) == 8 || sizeof(sP_FE
 static_assert(sizeof(sP_FE2CL_GM_REP_REWARD_RATE_SUCC) == 40 || sizeof(sP_FE2CL_GM_REP_REWARD_RATE_SUCC) == 0);
 static_assert(sizeof(sP_FE2CL_REP_PC_ITEM_ENCHANT_SUCC) == 64 || sizeof(sP_FE2CL_REP_PC_ITEM_ENCHANT_SUCC) == 0);
 static_assert(sizeof(sP_FE2CL_REP_PC_ITEM_ENCHANT_FAIL) == 24 || sizeof(sP_FE2CL_REP_PC_ITEM_ENCHANT_FAIL) == 0);
+static_assert(sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET) == 76 || sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET) == 0);
 static_assert(sizeof(sP_LS2CL_REP_LOGIN_SUCC) == 84 || sizeof(sP_LS2CL_REP_LOGIN_SUCC) == 0);
 static_assert(sizeof(sP_LS2CL_REP_LOGIN_FAIL) == 72 || sizeof(sP_LS2CL_REP_LOGIN_FAIL) == 0);
 static_assert(sizeof(sP_LS2CL_REP_CHAR_INFO) == 204 || sizeof(sP_LS2CL_REP_CHAR_INFO) == 0);
