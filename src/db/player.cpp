@@ -48,7 +48,7 @@ void Database::getPlayer(Player* plr, int id) {
             p.Angle, p.HP, acc.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
             p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
             p.SkywayLocationFlag, p.CurrentMissionID, p.FirstUseFlag,
-            a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor
+            a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor, p.BankOwnership
         FROM Players as p
         INNER JOIN Appearances as a ON p.PlayerID = a.PlayerID
         INNER JOIN Accounts as acc ON p.AccountID = acc.AccountID
@@ -117,6 +117,8 @@ void Database::getPlayer(Player* plr, int id) {
     plr->PCStyle.iHairStyle = sqlite3_column_int(stmt, 33);
     plr->PCStyle.iHeight = sqlite3_column_int(stmt, 34);
     plr->PCStyle.iSkinColor = sqlite3_column_int(stmt, 35);
+
+    plr->BankOwnership = sqlite3_column_int(stmt, 36);
 
     sqlite3_finalize(stmt);
 
@@ -298,7 +300,7 @@ void Database::updatePlayer(Player *player) {
             Angle = ?, HP = ?, FusionMatter = ?, Taros = ?, Quests = ?,
             BatteryW = ?, BatteryN = ?, WarplocationFlag = ?,
             SkywayLocationFlag = ?, CurrentMissionID = ?,
-            PayZoneFlag = ?, FirstUseFlag = ?, Mentor = ?
+            PayZoneFlag = ?, FirstUseFlag = ?, Mentor = ?, BankOwnership = ?
         WHERE PlayerID = ?;
         )";
     sqlite3_stmt* stmt;
@@ -333,7 +335,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 18, player->PCStyle2.iPayzoneFlag);
     sqlite3_bind_blob(stmt, 19, player->iFirstUseFlag, sizeof(player->iFirstUseFlag), NULL);
     sqlite3_bind_int(stmt, 20, player->mentor);
-    sqlite3_bind_int(stmt, 21, player->iID);
+    sqlite3_bind_int(stmt, 21, player->BankOwnership);
+    sqlite3_bind_int(stmt, 22, player->iID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
